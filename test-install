@@ -1,0 +1,21 @@
+#!/bin/bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+
+here="$(dirname ${BASH_SOURCE[0]})"
+cd "$here"
+package_name=$(abspath . | xargs  basename)
+
+rm -rf  venv
+virtualenv venv
+venv/bin/pip install .
+venv/bin/$package_name --help > /dev/null
+
+rm -rf  venv
+virtualenv --python=python3 venv
+venv/bin/pip install .
+venv/bin/$package_name --help > /dev/null
+
+rm -rf  venv
