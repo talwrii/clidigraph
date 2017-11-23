@@ -21,6 +21,7 @@ DEFAULT = 'default'
 
 def build_parser():
     parser = argparse.ArgumentParser(description='Maintain a labelled digraph')
+    parser.add_argument('--debug', action='store_true', help='Include debug output (to stderr)')
     parser.add_argument('--config-dir', type=str, default=os.path.join(os.environ['HOME'], '.config', 'clidigraph'))
     parser.add_argument('--graph', type=str, default='graph')
     parsers = parser.add_subparsers(dest='command')
@@ -194,6 +195,9 @@ DEFAULT_SETTINGS = dict(trigger=None)
 
 def main():
     args = build_parser().parse_args()
+
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
 
     if not os.path.isdir(args.config_dir):
     	os.mkdir(args.config_dir)
