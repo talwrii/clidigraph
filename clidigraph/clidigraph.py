@@ -136,8 +136,10 @@ def after_graph(graph, root):
         visited |= new_border
     return result
 
+def merge_graphs(*graphs):
+    return reduce(merge_graph_pair, graphs)
 
-def merge_graph(a, b):
+def merge_graph_pair(a, b):
     result = dict(nodes=[], edges=dict())
     existing_edges = set()
     result['nodes'] = list(sorted(set(itertools.chain(a['nodes'], b['nodes']))))
@@ -156,7 +158,14 @@ def get_tag_color(tag, data):
 
     return dict(zip(tags, colors))[tag]
 
-def render_graph(data, before, after):
+def empty_graph():
+    return dict(nodes=list(), edges={})
+
+def root_graph(data):
+    return dict(nodes=data['nodes'], edges=data['edges'])
+
+
+def render_graph(data, graph):
     rendered_nodes = set()
     graphviz_graph = graphviz.Digraph()
 
@@ -169,34 +178,18 @@ def render_graph(data, before, after):
         LOGGER.debug('Color of %r %r %r', name, tag, kwargs)
         return graphviz_graph.node(name, **kwargs)
 
-    if after is not None or before is not None:
-        result_graph = dict(nodes=list(), edges={})
-        if after:
-            for after_node in after:
-                result_graph = merge_graph(
-                    result_graph,
-                    after_graph(data, after_node))
-
-        if before:
-            for before_node in before:
-                result_graph = merge_graph(
-                    result_graph,
-                    before_graph(data, before_node))
-    else:
-        result_graph = data
-
-    for node in result_graph['nodes']:
+    for node in graph['nodes']:
         if node not in rendered_nodes:
             rendered_nodes.add(node)
             render_node(node)
 
-    for source in result_graph['edges']:
+    for source in graph['edges']:
 
         if source not in rendered_nodes:
             rendered_nodes.add(source)
             render_node(source)
 
-        for (label, target) in result_graph['edges'][source]:
+        for (label, target) in graph['edges'][source]:
 
             if target not in rendered_nodes:
                 rendered_nodes.add(target)
@@ -208,7 +201,6 @@ def render_graph(data, before, after):
                 graphviz_graph.edge(source, target, label=label)
 
     return graphviz_graph.source
-
 
 
 DEFAULT_SETTINGS = dict(trigger=None)
@@ -269,18 +261,23 @@ def main():
             data['edges'][source].remove([args.label, target])
         elif args.command == 'show':
 
-            if args.before:
-                before_nodes = set()
-                for before in (args.before or set()):
-                    if before.startswith('tag:'):
-                        _, tag = before.split(':', 1)
-                        before_nodes.update(get_nodes(data, tag=tag))
-                    else:
-                        before_nodes.add(before)
-            else:
-                before_nodes = None
+            before_nodes = args.before and set.union(*(get_spec_nodes(data, spec) for spec in args.before))
+            after_nodes = args.after and set.union(*(get_spec_nodes(data, spec) for spec in args.after))
 
-            print(render_graph(data, before=before_nodes, after=args.after))
+            graph = None
+            if before_nodes:
+                graph = graph or empty_graph()
+                graph = merge_graphs(graph, *[before_graph(data, node) for node in before_nodes])
+
+            if after_nodes:
+                graph = graph or empty_graph()
+                graph = merge_graphs(graph, *[after_graph(data, node) for node in before_nodes])
+
+            if graph is None:
+                graph = root_graph(data)
+
+            print(render_graph(data, graph))
+
         elif args.command == 'nonode':
             for node in args.node:
                 if node in data['edges']:
@@ -355,6 +352,15 @@ def get_node(data, source):
 def get_tag(data, name):
     tag, = [t for t in data['tags'] if re.search(name, t)]
     return tag
+
+def get_spec_nodes(data, specifier):
+    result = set()
+    if specifier.startswith('tag:'):
+        _, tag = before.split(':', 1)
+        result.update(get_nodes(data, tag=tag))
+    else:
+        result.add(specifier)
+    return result
 
 
 TRIGGERS_CHANGE = dict(show=False, node=True, config=False, nodes=False, edge=True, dump=False, nonode=True, trigger=True, shell=True, noedge=True, rename=True, tag=True, tags=False)
