@@ -34,6 +34,11 @@ def build_parser():
     remove_parser = parsers.add_parser('nonode')
     remove_parser.add_argument('node', action='append', type=str)
 
+    tag_parser = parsers.add_parser('tag', help='Run the trigger event')
+    tag_parser.add_argument('tag', type=str)
+    tag_parser.add_argument('node', type=str)
+    tag_parser.add_argument('--new', '-n', action='store_true', help='Create a new tag')
+
     parsers.add_parser('trigger', help='Run the trigger event')
     parsers.add_parser('dump', help='Dump the data (liable to change)')
     parsers.add_parser('shell', help='Open a python shell to edit data')
@@ -209,8 +214,10 @@ def main():
 
     data_file = os.path.join(args.config_dir, args.graph)
     with with_data(data_file) as data:
+        data.setdefault('tags', dict())
         data.setdefault('edges', dict())
         data.setdefault('nodes', list())
+        data.setdefault('node_info', dict())
         data.setdefault('settings', dict())
         for key, value in DEFAULT_SETTINGS.items():
             data['settings'].setdefault(key, value)
@@ -296,6 +303,16 @@ def main():
             if args.name in data['nodes']:
                 raise Exception('Not {!r} already exists'.format(args.name))
             data['nodes'].append(args.name)
+        elif args.command == 'tag':
+            node = get_node(data, args.node)
+            if args.new:
+                tag = args.tag
+                data["tags"][tag] = dict()
+            else:
+                tag = get_tag(data, args.tag)
+
+            data["node_info"].setdefault(node, dict())
+            data["node_info"][node]['tag'] = tag
         elif args.command == 'nodes':
             for node in sorted(data['nodes']):
                 node_tag = data['node_info'].get(node, dict()).get('tag')
