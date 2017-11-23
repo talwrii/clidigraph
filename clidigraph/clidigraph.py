@@ -35,7 +35,7 @@ def build_parser():
     parsers.add_parser('shell', help='Open a python shell to edit data')
 
     show_parser = parsers.add_parser('show', help='Show all nodes')
-    show_parser.add_argument('--before', '-b', type=str, help='Show nodes that lead to this node', action='append')
+    show_parser.add_argument('--before', '-b', type=str, help='Show nodes that lead to this node. Use tag:TAGNAME to show all nodes with a tag', action='append')
     show_parser.add_argument('--after', '-a', type=str, help='Show the nodes that can be reached from these nodes', action='append')
 
     config_parser = parsers.add_parser('config', help='Change settings')
@@ -246,7 +246,19 @@ def main():
             source, = [n for n in data['nodes'] if re.search(args.source, n)]
             data['edges'][source].remove([args.label, target])
         elif args.command == 'show':
-            print(render_graph(data, before=args.before, after=args.after))
+
+            if args.before:
+                before_nodes = set()
+                for before in (args.before or set()):
+                    if before.startswith('tag:'):
+                        _, tag = before.split(':', 1)
+                        before_nodes.update(get_nodes(data, tag=tag))
+                    else:
+                        before_nodes.add(before)
+            else:
+                before_nodes = None
+
+            print(render_graph(data, before=before_nodes, after=args.after))
         elif args.command == 'nonode':
             for node in args.node:
                 if node in data['edges']:
