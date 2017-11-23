@@ -58,6 +58,7 @@ def build_parser():
 
     node_parser = parsers.add_parser('node', help='Add a node')
     node_parser.add_argument('name', type=str)
+    node_parser.add_argument('--tag', '-t', type=str, help='Mark the node with this tag')
 
     edge_parser = parsers.add_parser('edge', help='Add an edge')
     edge_parser.add_argument('source', type=str)
@@ -303,6 +304,10 @@ def main():
             if args.name in data['nodes']:
                 raise Exception('Not {!r} already exists'.format(args.name))
             data['nodes'].append(args.name)
+
+            if args.tag:
+                data['node_info'].setdefault(args.name, dict())["tag"] = args.tag
+
         elif args.command == 'tag':
             node = get_node(data, args.node)
             if args.new:
