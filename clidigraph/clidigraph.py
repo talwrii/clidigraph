@@ -80,6 +80,15 @@ def read_json(filename):
     else:
         return dict()
 
+def get_nodes(data, tag=None):
+    get_tag(data, tag)
+    if tag is None:
+        raise ValueError(tag)
+
+    for name, info in data['node_info'].items():
+        if info.get('tag') == tag:
+            yield name
+
 DATA_LOCK = threading.Lock()
 @contextlib.contextmanager
 def with_data(data_file):
@@ -255,7 +264,8 @@ def main():
             data['edges'].setdefault(source, [])
             data['edges'][source].append((args.label, target))
         elif args.command == 'noedge':
-            source, = [n for n in data['nodes'] if re.search(args.source, n)]
+            source = get_node(data, args.source)
+            target = get_node(data, args.target)
             data['edges'][source].remove([args.label, target])
         elif args.command == 'show':
 
@@ -278,6 +288,7 @@ def main():
 
                 if node in data['nodes']:
                     data['nodes'].remove(node)
+                    data['node_info'].pop(node)
 
             for graph_node in data['edges']:
                 for pair in list(data['edges'][graph_node]):
@@ -289,14 +300,17 @@ def main():
 
             if args.new in data['nodes']:
                 raise Exception('{!r} is already a node'.format(args.new))
+
+            old_info = data['node_info'].pop(old, dict())
             data['nodes'].remove(old)
             data['nodes'].append(args.new)
             if old in data['edges']:
                 data['edges'][args.new] = data['edges'].pop(old)
 
+            data['node_info'][args.new] = old_info
+
             for source in list(data["edges"]):
                 data["edges"][source] = [(label, args.new if target == old else target) for label, target in data["edges"][source]]
-
 
 
         elif args.command == 'node':
@@ -306,7 +320,7 @@ def main():
             data['nodes'].append(args.name)
 
             if args.tag:
-                data['node_info'].setdefault(args.name, dict())["tag"] = args.tag
+                data['node_info'].setdefault(args.name, dict())['tag'] = args.tag
 
         elif args.command == 'tag':
             node = get_node(data, args.node)
@@ -334,4 +348,13 @@ def main():
         if TRIGGERS_CHANGE[args.command]:
             subprocess.check_call(data['settings']['trigger'], shell=True)
 
-TRIGGERS_CHANGE = dict(show=False, node=True, config=False, nodes=False, edge=True, dump=False, nonode=True, trigger=True, shell=True, noedge=True, rename=True)
+def get_node(data, source):
+    source, = [n for n in data['nodes'] if re.search(source, n)]
+    return source
+
+def get_tag(data, name):
+    tag, = [t for t in data['tags'] if re.search(name, t)]
+    return tag
+
+
+TRIGGERS_CHANGE = dict(show=False, node=True, config=False, nodes=False, edge=True, dump=False, nonode=True, trigger=True, shell=True, noedge=True, rename=True, tag=True, tags=False)
