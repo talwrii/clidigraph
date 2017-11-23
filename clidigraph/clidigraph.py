@@ -105,6 +105,7 @@ def after_graph(graph, root):
     visited = set()
     while border:
         new_border = set()
+        result['nodes'].update(border)
         for x in border:
             result['edges'].setdefault(x, set())
             result['edges'][x] = list(graph['edges'].get(x, []))
