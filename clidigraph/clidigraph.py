@@ -26,7 +26,11 @@ def build_parser():
     parser.add_argument('--graph', type=str, default='graph')
     parsers = parser.add_subparsers(dest='command')
 
+    parsers.add_parser('tags', help='Show tags')
+
     nodes_parser = parsers.add_parser('nodes', help='Show nodes')
+    nodes_parser.add_argument('--tag', '-t', type=str, help='Output nodes with these  tags', action='append')
+
     remove_parser = parsers.add_parser('nonode')
     remove_parser.add_argument('node', action='append', type=str)
 
@@ -294,7 +298,12 @@ def main():
             data['nodes'].append(args.name)
         elif args.command == 'nodes':
             for node in sorted(data['nodes']):
-                print(node)
+                node_tag = data['node_info'].get(node, dict()).get('tag')
+                if args.tag is None or node_tag in args.tag:
+                    print(node)
+        elif args.command == 'tags':
+            for tag in sorted(data['tags']):
+                print(tag)
         elif args.command == 'trigger':
             pass
         else:
