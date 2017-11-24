@@ -131,12 +131,12 @@ def reverse_graph(graph):
 
 def after_graph(graph, root, depth=None):
     result = dict(edges={}, nodes=set())
-    border = set([root])
 
     visited = set()
 
     depths = range(depth) if depth is not None else itertools.count()
 
+    border = set([root])
     result['nodes'].update(border)
     for _ in depths:
         new_border = set()
@@ -147,13 +147,12 @@ def after_graph(graph, root, depth=None):
                 new_border.add(target)
 
         new_border -= visited
-        border = new_border
-        result['nodes'].update(border)
+        result['nodes'].update(new_border)
         visited |= new_border
-
-        if border is None:
+        if not new_border:
             break
 
+        border = new_border
     return result
 
 def merge_graphs(*graphs):
