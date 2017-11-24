@@ -46,6 +46,14 @@ def build_parser():
     show_parser = parsers.add_parser('show', help='Show all nodes')
     show_parser.add_argument('--before', '-b', type=str, help='Show nodes that lead to this node. Use tag:TAGNAME to show all nodes with a tag', action='append')
     show_parser.add_argument('--after', '-a', type=str, help='Show the nodes that can be reached from these nodes', action='append')
+    show_parser.add_argument(
+        '--neighbours', '-n', type=str,
+        action='append', nargs=2,
+        metavar=('NODE', 'DEPTH'),
+        help='Show node and neighbours up to a depth of DEPTH. If depth is signed +2 or -2 then show parents or children'
+    )
+
+
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -102,9 +110,10 @@ def with_data(data_file):
             with open(data_file, 'w') as stream:
                 stream.write(output)
 
-def before_graph(graph, x):
+def before_graph(graph, x, depth=None):
     "Return the subgraph of things leading to x."
-    return reverse_graph(after_graph(reverse_graph(graph), x))
+    return reverse_graph(after_graph(reverse_graph(graph), x, depth))
+
 
 def reverse_graph(graph):
     result = dict()
@@ -117,14 +126,17 @@ def reverse_graph(graph):
 
     return result
 
-def after_graph(graph, root):
+def after_graph(graph, root, depth=None):
     result = dict(edges={}, nodes=set())
     border = set([root])
 
     visited = set()
-    while border:
+
+    depths = range(depth) if depth is not None else itertools.count()
+
+    result['nodes'].update(border)
+    for _ in depths:
         new_border = set()
-        result['nodes'].update(border)
         for x in border:
             result['edges'].setdefault(x, set())
             result['edges'][x] = list(graph['edges'].get(x, []))
@@ -133,7 +145,12 @@ def after_graph(graph, root):
 
         new_border -= visited
         border = new_border
+        result['nodes'].update(border)
         visited |= new_border
+
+        if border is None:
+            break
+
     return result
 
 def merge_graphs(*graphs):
@@ -152,7 +169,7 @@ def merge_graph_pair(a, b):
 
 def get_tag_color(tag, data):
     tags = sorted(data['tags'])
-    colors = ('red', 'green', 'blue', 'purple')
+    colors = ('red', 'lightgreen', 'blue', 'purple')
     if len(tag) > len(colors):
         raise Exception('Too many colors')
 
@@ -263,7 +280,6 @@ def main():
 
             before_nodes = args.before and set.union(*(get_spec_nodes(data, spec) for spec in args.before))
             after_nodes = args.after and set.union(*(get_spec_nodes(data, spec) for spec in args.after))
-
             graph = None
             if before_nodes:
                 graph = graph or empty_graph()
@@ -271,7 +287,26 @@ def main():
 
             if after_nodes:
                 graph = graph or empty_graph()
-                graph = merge_graphs(graph, *[after_graph(data, node) for node in before_nodes])
+                graph = merge_graphs(graph, *[after_graph(data, node) for node in after_nodes])
+
+            for specifier, depth in args.neighbours:
+                if depth.startswith('+'):
+                    down_depth = int(depth[1:])
+                    up_depth = 0
+                elif depth.startswith('-'):
+                    up_depth = int(depth[1:])
+                    down_depth = 0
+                else:
+                    up_depth = down_depth = int(depth)
+
+                graph = graph or empty_graph()
+                seeds = get_spec_nodes(data, specifier)
+                graph = merge_graphs(graph, *[
+                    merge_graphs(
+                        before_graph(data, node, depth=up_depth),
+                        after_graph(data, node, depth=down_depth),
+                        )
+                    for node in seeds])
 
             if graph is None:
                 graph = root_graph(data)
@@ -356,7 +391,7 @@ def get_tag(data, name):
 def get_spec_nodes(data, specifier):
     result = set()
     if specifier.startswith('tag:'):
-        _, tag = before.split(':', 1)
+        _, tag = specifier.split(':', 1)
         result.update(get_nodes(data, tag=tag))
     else:
         result.add(specifier)
