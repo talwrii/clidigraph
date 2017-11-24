@@ -39,6 +39,9 @@ def build_parser():
     tag_parser.add_argument('node', type=str)
     tag_parser.add_argument('--new', '-n', action='store_true', help='Create a new tag')
 
+    notag_parser = parsers.add_parser('notag', help='Delete a tag')
+    notag_parser.add_argument('tag', type=str)
+
     parsers.add_parser('trigger', help='Run the trigger event')
     parsers.add_parser('dump', help='Dump the data (liable to change)')
     parsers.add_parser('shell', help='Open a python shell to edit data')
@@ -94,7 +97,7 @@ def get_nodes(data, tag=None):
         raise ValueError(tag)
 
     for name, info in data['node_info'].items():
-        if info.get('tag') == tag:
+        if tag in info.get('tags', list()):
             yield name
 
 DATA_LOCK = threading.Lock()
@@ -187,7 +190,8 @@ def render_graph(data, graph):
     graphviz_graph = graphviz.Digraph()
 
     def render_node(name):
-        tag = data['node_info'].get(name, dict()).get('tag')
+        tags = data['node_info'].get(name, dict()).get('tags')
+        tag = sorted(tags)[0] if tags else None
         if tag:
             kwargs = dict(tooltip='tag:' + tag, fillcolor=get_tag_color(tag, data), style='filled')
         else:
@@ -289,24 +293,25 @@ def main():
                 graph = graph or empty_graph()
                 graph = merge_graphs(graph, *[after_graph(data, node) for node in after_nodes])
 
-            for specifier, depth in args.neighbours:
-                if depth.startswith('+'):
-                    down_depth = int(depth[1:])
-                    up_depth = 0
-                elif depth.startswith('-'):
-                    up_depth = int(depth[1:])
-                    down_depth = 0
-                else:
-                    up_depth = down_depth = int(depth)
+            if args.neighbours:
+                for specifier, depth in args.neighbours:
+                    if depth.startswith('+'):
+                        down_depth = int(depth[1:])
+                        up_depth = 0
+                    elif depth.startswith('-'):
+                        up_depth = int(depth[1:])
+                        down_depth = 0
+                    else:
+                        up_depth = down_depth = int(depth)
 
-                graph = graph or empty_graph()
-                seeds = get_spec_nodes(data, specifier)
-                graph = merge_graphs(graph, *[
-                    merge_graphs(
-                        before_graph(data, node, depth=up_depth),
-                        after_graph(data, node, depth=down_depth),
-                        )
-                    for node in seeds])
+                    graph = graph or empty_graph()
+                    seeds = get_spec_nodes(data, specifier)
+                    graph = merge_graphs(graph, *[
+                        merge_graphs(
+                            before_graph(data, node, depth=up_depth),
+                            after_graph(data, node, depth=down_depth),
+                            )
+                        for node in seeds])
 
             if graph is None:
                 graph = root_graph(data)
@@ -358,12 +363,20 @@ def main():
             node = get_node(data, args.node)
             if args.new:
                 tag = args.tag
-                data["tags"][tag] = dict()
+                data["tags"][tag] = list()
             else:
                 tag = get_tag(data, args.tag)
 
             data["node_info"].setdefault(node, dict())
-            data["node_info"][node]['tag'] = tag
+            data["node_info"][node].setdefault('tags', list()).append(tag)
+
+        elif args.command == 'notag':
+            tag = get_tag(data, args.tag)
+            data['tags'].remove(tag)
+            for v in data["node_info"].values():
+                if tag in v:
+                    v.remove(tag)
+
         elif args.command == 'nodes':
             for node in sorted(data['nodes']):
                 node_tag = data['node_info'].get(node, dict()).get('tag')
@@ -398,4 +411,4 @@ def get_spec_nodes(data, specifier):
     return result
 
 
-TRIGGERS_CHANGE = dict(show=False, node=True, config=False, nodes=False, edge=True, dump=False, nonode=True, trigger=True, shell=True, noedge=True, rename=True, tag=True, tags=False)
+TRIGGERS_CHANGE = dict(show=False, node=True, config=False, nodes=False, edge=True, dump=False, nonode=True, trigger=True, shell=True, noedge=True, rename=True, tag=True, tags=False, notag=True)
