@@ -189,7 +189,7 @@ def render_graph(data, graph):
     def render_node(name):
         tag = data['node_info'].get(name, dict()).get('tag')
         if tag:
-            kwargs = dict(fillcolor=get_tag_color(tag, data), style='filled')
+            kwargs = dict(tooltip='tag:' + tag, fillcolor=get_tag_color(tag, data), style='filled')
         else:
             kwargs = dict()
         LOGGER.debug('Color of %r %r %r', name, tag, kwargs)
