@@ -47,15 +47,19 @@ def build_parser():
     parsers.add_parser('shell', help='Open a python shell to edit data')
 
     show_parser = parsers.add_parser('show', help='Show all nodes')
-    show_parser.add_argument('--before', '-b', type=str, help='Show nodes that lead to this node. Use tag:TAGNAME to show all nodes with a tag', action='append')
-    show_parser.add_argument('--after', '-a', type=str, help='Show the nodes that can be reached from these nodes', action='append')
+    show_parser.add_argument(
+        '--before', '-b', type=str, action='append',
+        help='Show nodes that lead to this node.'
+        ' Use tag:TAGNAME to show all nodes with a tag')
+    show_parser.add_argument(
+        '--after', '-a', type=str, action='append',
+        help='Show the nodes that can be reached from these nodes', )
     show_parser.add_argument(
         '--neighbours', '-n', type=str,
         action='append', nargs=2,
         metavar=('NODE', 'DEPTH'),
-        help='Show node and neighbours up to a depth of DEPTH. If depth is signed +2 or -2 then show parents or children'
-    )
-
+        help='Show node and neighbours up to a depth of DEPTH.'
+        ' If depth is signed +2 or -2 then show parents or children')
 
 
     config_parser = parsers.add_parser('config', help='Change settings')
