@@ -74,6 +74,9 @@ def build_parser():
     node_parser = parsers.add_parser('node', help='Add a node')
     node_parser.add_argument('name', type=str)
     node_parser.add_argument('--tag', '-t', type=str, help='Mark the node with this tag')
+    node_parser.add_argument(
+        '--from', '-r', type=str, action='append', dest='from_nodes',
+        help='Add a link from this node')
 
     edge_parser = parsers.add_parser('edge', help='Add an edge')
     edge_parser.add_argument('source', type=str)
@@ -269,16 +272,7 @@ def main():
                 raise Exception('No action')
 
         elif args.command == 'edge':
-            possible_sources = [n for n in data['nodes'] if re.search(args.source, n)]
-            possible_targets = [n for n in data['nodes'] if re.search(args.target, n)]
-            try:
-                source, = possible_sources
-            except:
-                raise ValueError(possible_sources)
-            target, =  possible_targets
-
-            data['edges'].setdefault(source, [])
-            data['edges'][source].append((args.label, target))
+            add_edge(data, args.source, args.target, args.label)
         elif args.command == 'noedge':
             source = get_node(data, args.source)
             target = get_node(data, args.target)
@@ -362,6 +356,10 @@ def main():
             if args.tag:
                 data['node_info'].setdefault(args.name, dict())['tag'] = args.tag
 
+            if args.from_nodes:
+                for from_node in args.from_nodes:
+                    add_edge(data, from_node, args.name)
+
         elif args.command == 'tag':
             node = get_node(data, args.node)
             if args.new:
@@ -413,5 +411,15 @@ def get_spec_nodes(data, specifier):
         result.add(specifier)
     return result
 
+def add_edge(data, source_string, target_string, label=DEFAULT):
+    possible_sources = [n for n in data['nodes'] if re.search(source_string, n)]
+    possible_targets = [n for n in data['nodes'] if re.search(target_string, n)]
+    try:
+        source, = possible_sources
+    except:
+        raise ValueError(possible_sources)
+    target, =  possible_targets
+    data['edges'].setdefault(source, [])
+    data['edges'][source].append((label, target))
 
 TRIGGERS_CHANGE = dict(show=False, node=True, config=False, nodes=False, edge=True, dump=False, nonode=True, trigger=True, shell=True, noedge=True, rename=True, tag=True, tags=False, notag=True)
