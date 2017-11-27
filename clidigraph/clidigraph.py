@@ -48,6 +48,10 @@ def build_parser():
 
     show_parser = parsers.add_parser('show', help='Show all nodes')
     show_parser.add_argument(
+        '--around', '-r', type=str, action='append',
+        help='Show nodes both before and after this.'
+        ' Use tag:TAGNAME to show all nodes with a tag')
+    show_parser.add_argument(
         '--before', '-b', type=str, action='append',
         help='Show nodes that lead to this node.'
         ' Use tag:TAGNAME to show all nodes with a tag')
@@ -282,6 +286,15 @@ def main():
 
             before_nodes = args.before and set.union(*(get_spec_nodes(data, spec) for spec in args.before))
             after_nodes = args.after and set.union(*(get_spec_nodes(data, spec) for spec in args.after))
+
+            if args.around:
+                before_nodes = set.union(
+                    before_nodes or set(),
+                    *(get_spec_nodes(data, spec) for spec in args.around))
+                after_nodes = set.union(
+                    after_nodes or set(),
+                    *(get_spec_nodes(data, spec) for spec in args.around))
+
             graph = None
             if before_nodes:
                 graph = graph or empty_graph()
