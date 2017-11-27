@@ -179,7 +179,7 @@ def merge_graph_pair(a, b):
 
 def get_tag_color(tag, data):
     tags = sorted(data['tags'])
-    colors = ('red', 'lightgreen', 'blue', 'purple')
+    colors = ('pink', 'lightgreen', 'blue', 'lightpurple', 'orange', 'green')
     if len(tag) > len(colors):
         raise Exception('Too many colors')
 
