@@ -73,7 +73,9 @@ def build_parser():
 
     node_parser = parsers.add_parser('node', help='Add a node')
     node_parser.add_argument('name', type=str)
-    node_parser.add_argument('--tag', '-t', type=str, help='Mark the node with this tag')
+    node_parser.add_argument(
+        '--tag', '-t', type=str,
+        help='Mark the node with this tag')
     node_parser.add_argument(
         '--from', '-r', type=str, action='append', dest='from_nodes',
         help='Add a link from this node')
@@ -87,7 +89,6 @@ def build_parser():
     no_edge.add_argument('source', type=str)
     no_edge.add_argument('target', type=str)
     no_edge.add_argument('label', type=str, default=DEFAULT, nargs='?')
-
 
     return parser
 
