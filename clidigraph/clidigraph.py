@@ -326,6 +326,8 @@ def main():
 
             elif args.command == 'edge':
                 add_edge(data, args.source, args.target, args.label)
+            elif args.command == 'label':
+                label_edge(data, args.source, args.target, args.label or DEFAULT)
             elif args.command == 'noedge':
                 source = get_node(data, args.source)
                 target = get_node(data, args.target)
@@ -495,6 +497,27 @@ def add_edge(data, source_string, target_string, label=DEFAULT):
     data['edges'].setdefault(source, [])
     data['edges'][source].append((label, target))
 
+def label_edge(data, source_string, target_string, label):
+    source, = [n for n in data['nodes'] if re.search(source_string, n)]
+    target, = [n for n in data['nodes'] if re.search(target_string, n)]
+
+    if source not in data['edges']:
+        raise Exception('No edges from {}'.format(source))
+
+    edges = []
+    for label, neighbour in data['edges'][source]:
+        print(neighbour)
+        if neighbour == target:
+            edges.append((source, target, label))
+
+    if len(edges) > 1:
+        raise Exception('Too many edges {}'.format(edges))
+    elif len(edges) == 0:
+        raise Exception('Too few edges')
+    else:
+        data['edges'][source] = [(x, l) for x, l in data['edges'][source] if x != target] + [(label, target)]
+
+
 @contextlib.contextmanager
 def with_clidi_data(data_file):
     with with_data(data_file) as data:
@@ -522,4 +545,5 @@ TRIGGERS_CHANGE = dict(
     tag=True,
     tags=False,
     notag=True,
+    label=True,
     note=True)
