@@ -3,18 +3,27 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import argparse
-import editor
 import contextlib
+import functools
 import itertools
 import json
 import logging
 import os
 import re
 import subprocess
+import sys
 import threading
 
 import fasteners
 import graphviz
+
+import editor
+
+if sys.version_info[0] != 3:
+    # FileNotFoundError does not exist in python 2
+    raise Exception('Only works with python 3')
+
+
 
 LOGGER = logging.getLogger()
 
@@ -94,6 +103,11 @@ def build_parser():
     node_parser.add_argument(
         '--label', '-l', type=str, default=DEFAULT,
         help='Mark edges with this label')
+
+    label_parser = parsers.add_parser('label', help='Label an existing edge')
+    label_parser.add_argument('source', type=str)
+    label_parser.add_argument('target', type=str)
+    label_parser.add_argument('label', type=str)
 
     edge_parser = parsers.add_parser('edge', help='Add an edge')
     edge_parser.add_argument('source', type=str)
@@ -186,7 +200,9 @@ def after_graph(graph, root, depth=None):
     return result
 
 def merge_graphs(*graphs):
-    return reduce(merge_graph_pair, graphs)
+    return functools.reduce(merge_graph_pair, graphs)
+
+
 
 def merge_graph_pair(a, b):
     result = dict(nodes=[], edges=dict())
