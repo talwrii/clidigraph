@@ -39,6 +39,7 @@ def build_parser():
     parsers.add_parser('tags', help='Show tags')
 
     nodes_parser = parsers.add_parser('nodes', help='Show nodes')
+    nodes_parser.add_argument('specifier', type=str, nargs='?')
 
     nodes_parser.add_argument('--tag', '-t', type=str, help='Output nodes with these  tags', action='append')
 
@@ -447,10 +448,16 @@ def main():
                         v.remove(tag)
 
             elif args.command == 'nodes':
-                for node in sorted(data['nodes']):
+                if args.specifier is None:
+                    nodes = data['nodes']
+                else:
+                    nodes = get_spec_nodes(data, args.specifier)
+
+                for node in sorted(nodes):
                     node_tag = data['node_info'].get(node, dict()).get('tag')
                     if args.tag is None or node_tag in args.tag:
                         print(node)
+
             elif args.command == 'tags':
                 for tag in sorted(data['tags']):
                     print(tag)
