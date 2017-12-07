@@ -299,7 +299,6 @@ def render_graph(data, graph, highlighted_nodes):
             render_node(node)
 
     for source in graph['edges']:
-
         if source not in rendered_nodes:
             rendered_nodes.add(source)
             render_node(source)
@@ -376,20 +375,20 @@ def main():
                 data['edges'][source].remove([args.label, target])
             elif args.command == 'show':
 
-                before_nodes = args.before and set.union(*(get_spec_nodes(data, spec) for spec in args.before))
-                after_nodes = args.after and set.union(*(get_spec_nodes(data, spec) for spec in args.after))
+                before_nodes = args.before and set.union(*(get_matching_nodes(data, spec) for spec in args.before))
+                after_nodes = args.after and set.union(*(get_matching_nodes(data, spec) for spec in args.after))
 
                 if args.around:
                     before_nodes = set.union(
                         before_nodes or set(),
-                        *(get_spec_nodes(data, spec) for spec in args.around))
+                        *(get_matching_nodes(data, spec) for spec in args.around))
                     after_nodes = set.union(
                         after_nodes or set(),
-                        *(get_spec_nodes(data, spec) for spec in args.around))
+                        *(get_matching_nodes(data, spec) for spec in args.around))
 
                 if args.highlight:
                     highlighted_nodes = set.union(
-                        *(get_spec_nodes(data, spec) for spec in args.highlight))
+                        *(get_matching_nodes(data, spec) for spec in args.highlight))
                 else:
                     highlighted_nodes = []
 
@@ -405,7 +404,7 @@ def main():
                 if args.neighbours:
                     for specifier, depth in args.neighbours:
                         graph = graph or empty_graph()
-                        seeds = get_spec_nodes(data, specifier)
+                        seeds = get_matching_nodes(data, specifier)
                         graph = merge_graphs(graph, *[
                             neighbour_graph(data, seed, depth)
                             for seed in seeds])
@@ -489,7 +488,7 @@ def main():
                 if args.specifier is None:
                     nodes = data['nodes']
                 else:
-                    nodes = get_spec_nodes(data, args.specifier)
+                    nodes = get_matching_nodes(data, args.specifier)
 
                 for node in sorted(nodes):
                     node_tag = data['node_info'].get(node, dict()).get('tag')
@@ -522,13 +521,13 @@ def get_tag(data, name):
     tag, = [t for t in data['tags'] if re.search(name, t)]
     return tag
 
-def get_spec_nodes(data, specifier):
+def get_matching_nodes(data, specifier):
     result = set()
 
     if specifier.startswith('neighbour:'):
         _, rest = specifier.split(':', 1)
         root_specifier, depth = rest.rsplit(':', 1)
-        root_nodes = get_spec_nodes(data, root_specifier)
+        root_nodes = get_matching_nodes(data, root_specifier)
         return set(merge_graphs(*[
             neighbour_graph(data, root, depth)
             for root in root_nodes])["nodes"]) - set(root_nodes)
