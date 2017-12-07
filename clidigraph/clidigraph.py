@@ -1,11 +1,9 @@
+# pylint: disable=locally-disabled
 # make code as python 3 compatible as possible
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import argparse
 import contextlib
-import functools
-import itertools
 import json
 import logging
 import os
@@ -19,17 +17,19 @@ import graphviz
 
 import editor
 
+from . import specifiers
+from . import graphs
+
 if sys.version_info[0] != 3:
     # FileNotFoundError does not exist in python 2
     raise Exception('Only works with python 3')
-
 
 
 LOGGER = logging.getLogger()
 
 DEFAULT = 'default'
 
-def build_parser():
+def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-statements
     parser = argparse.ArgumentParser(description='Maintain a labelled digraph')
     parser.add_argument('--debug', action='store_true', help='Include debug output (to stderr)')
     parser.add_argument('--config-dir', type=str, default=os.path.join(os.environ['HOME'], '.config', 'clidigraph'))
@@ -59,6 +59,10 @@ def build_parser():
     parsers.add_parser('shell', help='Open a python shell to edit data')
 
     show_parser = parsers.add_parser('show', help='Show all nodes')
+    show_parser.add_argument(
+        '--collapse', '-c', type=str, action='append',
+        help='Collapse nodes after this point'
+        ' Use tag:TAGNAME to show all nodes with a tag')
     show_parser.add_argument(
         '--around', '-r', type=str, action='append',
         help='Show nodes both before and after this.'
@@ -141,23 +145,6 @@ def read_json(filename):
     else:
         return dict()
 
-def get_nodes(data, tag=None):
-    get_tag(data, tag)
-    if tag is None:
-        raise ValueError(tag)
-
-    for name, info in data['node_info'].items():
-        if tag in info.get('tags', list()):
-            yield name
-
-def get_roots(data):
-    nodes = set(data["nodes"])
-    for source in data["edges"]:
-        for _, target in data['edges'][source]:
-            if target in nodes:
-                nodes.remove(target)
-    return nodes
-
 DATA_LOCK = threading.Lock()
 @contextlib.contextmanager
 def with_data(data_file):
@@ -171,78 +158,6 @@ def with_data(data_file):
             with open(data_file, 'w') as stream:
                 stream.write(output)
 
-def before_graph(graph, x, depth=None):
-    "Return the subgraph of things leading to x."
-    return reverse_graph(after_graph(reverse_graph(graph), x, depth))
-
-
-def reverse_graph(graph):
-    result = dict()
-    result['nodes'] = list(graph['nodes'])
-    result['edges'] = dict()
-    for source in graph['edges']:
-        for label, target in graph['edges'][source]:
-            result['edges'].setdefault(target, list())
-            result['edges'][target].append((label, source))
-
-    return result
-
-def neighbour_graph(graph, root, depth):
-    if depth.startswith('+'):
-        down_depth = int(depth[1:])
-        up_depth = 0
-    elif depth.startswith('-'):
-        up_depth = int(depth[1:])
-        down_depth = 0
-    else:
-        up_depth = down_depth = int(depth)
-
-    return merge_graphs(
-        before_graph(graph, root, depth=up_depth),
-        after_graph(graph, root, depth=down_depth),
-        )
-
-def after_graph(graph, root, depth=None):
-    result = dict(edges={}, nodes=set())
-
-    visited = set()
-
-    depths = range(depth) if depth is not None else itertools.count()
-
-    border = set([root])
-    result['nodes'].update(border)
-    for _ in depths:
-        new_border = set()
-        for x in border:
-            result['edges'].setdefault(x, set())
-            result['edges'][x] = list(graph['edges'].get(x, []))
-            for _, target in result['edges'][x]:
-                new_border.add(target)
-
-        new_border -= visited
-        result['nodes'].update(new_border)
-        visited |= new_border
-        if not new_border:
-            break
-
-        border = new_border
-    return result
-
-def merge_graphs(*graphs):
-    return functools.reduce(merge_graph_pair, graphs)
-
-
-
-def merge_graph_pair(a, b):
-    result = dict(nodes=[], edges=dict())
-    existing_edges = set()
-    result['nodes'] = list(sorted(set(itertools.chain(a['nodes'], b['nodes']))))
-
-    for source in set.union(set(a['edges']), set(b['edges'])):
-        result['edges'][source] = list(set.union(
-            set(map(tuple, a['edges'].get(source, list()))),
-            set(map(tuple, b['edges'].get(source, list())))))
-    return result
 
 HIGHLIGHT_COLOR = 'yellow'
 
@@ -263,7 +178,6 @@ def empty_graph():
 
 def root_graph(data):
     return dict(nodes=data['nodes'], edges=data['edges'])
-
 
 def render_graph(data, graph, highlighted_nodes):
     rendered_nodes = set()
@@ -319,7 +233,7 @@ def render_graph(data, graph, highlighted_nodes):
 
 DEFAULT_SETTINGS = dict(trigger=None)
 
-def main():
+def main(): # pylint: disable=too-many-branches
     args = build_parser().parse_args()
 
     if args.debug:
@@ -331,15 +245,7 @@ def main():
     data_file = os.path.join(args.config_dir, args.graph)
 
     if args.command == 'note':
-        with with_clidi_data(data_file) as data:
-            item = data['node_info'].setdefault(get_node(data, args.node_selector), {})
-
-            if not args.edit:
-                item['note'] = args.note
-
-        new_value = editor.edit(contents=item['note'].encode('utf8'))
-        with with_clidi_data(data_file) as data:
-            data['node_info'][get_node(data, args.node_selector)]['note'] = new_value
+        node_command(data_file, args)
     else:
         with with_clidi_data(data_file) as data:
             for key, value in DEFAULT_SETTINGS.items():
@@ -347,23 +253,9 @@ def main():
             if args.command == 'dump':
                 print(json.dumps(data, indent=4))
             elif args.command == 'shell':
-                import IPython
-                IPython.embed()
-                try:
-                    IPython.start_ipython(user_ns=dict(data=data))
-                except Exception:
-                    pass
-
+                shell_command(data)
             elif args.command == 'config':
-                if args.list:
-                    for key, item in data['settings'].items():
-                        print(key, item)
-                elif args.set:
-                    key, value = args.set
-                    data['settings'][key] = value
-
-                else:
-                    raise Exception('No action')
+                config_command(args, data)
 
             elif args.command == 'edge':
                 add_edge(data, args.source, args.target, args.label)
@@ -374,171 +266,200 @@ def main():
                 target = get_node(data, args.target)
                 data['edges'][source].remove([args.label, target])
             elif args.command == 'show':
-
-                before_nodes = args.before and set.union(*(get_matching_nodes(data, spec) for spec in args.before))
-                after_nodes = args.after and set.union(*(get_matching_nodes(data, spec) for spec in args.after))
-
-                if args.around:
-                    before_nodes = set.union(
-                        before_nodes or set(),
-                        *(get_matching_nodes(data, spec) for spec in args.around))
-                    after_nodes = set.union(
-                        after_nodes or set(),
-                        *(get_matching_nodes(data, spec) for spec in args.around))
-
-                if args.highlight:
-                    highlighted_nodes = set.union(
-                        *(get_matching_nodes(data, spec) for spec in args.highlight))
-                else:
-                    highlighted_nodes = []
-
-                graph = None
-                if before_nodes:
-                    graph = graph or empty_graph()
-                    graph = merge_graphs(graph, *[before_graph(data, node) for node in before_nodes])
-
-                if after_nodes:
-                    graph = graph or empty_graph()
-                    graph = merge_graphs(graph, *[after_graph(data, node) for node in after_nodes])
-
-                if args.neighbours:
-                    for specifier, depth in args.neighbours:
-                        graph = graph or empty_graph()
-                        seeds = get_matching_nodes(data, specifier)
-                        graph = merge_graphs(graph, *[
-                            neighbour_graph(data, seed, depth)
-                            for seed in seeds])
-
-                if args.after_all and graph:
-                    graph = merge_graphs(graph, *[after_graph(data, node) for node in graph["nodes"]])
-
-                if graph is None:
-                    graph = root_graph(data)
-
-                print(render_graph(data, graph))
-
+                show(args, data)
             elif args.command == 'nonode':
-                for node in args.node:
-                    if node in data['edges']:
-                        del data['edges'][node]
-
-                    if node in data['nodes']:
-                        data['nodes'].remove(node)
-                        data['node_info'].pop(node, None)
-
-                for graph_node in data['edges']:
-                    for pair in list(data['edges'][graph_node]):
-                        k, target = pair
-                        if target in args.node:
-                            data['edges'][graph_node].remove(pair)
+                delete_node_command(args, data)
             elif args.command == 'rename':
-                old, = [n for n in data['nodes'] if re.search(args.old, n)]
-
-                if args.new in data['nodes']:
-                    raise Exception('{!r} is already a node'.format(args.new))
-
-                old_info = data['node_info'].pop(old, dict())
-                data['nodes'].remove(old)
-                data['nodes'].append(args.new)
-                if old in data['edges']:
-                    data['edges'][args.new] = data['edges'].pop(old)
-
-                data['node_info'][args.new] = old_info
-
-                for source in list(data["edges"]):
-                    data["edges"][source] = [(label, args.new if target == old else target) for label, target in data["edges"][source]]
-
-
+                return rename_command(data, args.old, args.new)
             elif args.command == 'node':
-                trigger_change = True
-                if args.name in data['nodes']:
-                    raise Exception('Not {!r} already exists'.format(args.name))
-                data['nodes'].append(args.name)
-
-                if args.tag:
-                    data['node_info'].setdefault(args.name, dict())['tag'] = args.tag
-
-                if args.from_nodes:
-                    for from_node in args.from_nodes:
-                        add_edge(data, from_node, args.name, label=args.label)
-
-                if args.to_nodes:
-                    for to_node in args.to_nodes:
-                        add_edge(data, args.name, to_node, label=args.label)
-
+                create_node(
+                    data,
+                    args)
             elif args.command == 'tag':
-                node = get_node(data, args.node)
-                if args.new:
-                    tag = args.tag
-                    data["tags"][tag] = list()
-                else:
-                    tag = get_tag(data, args.tag)
-
-                data["node_info"].setdefault(node, dict())
-                data["node_info"][node].setdefault('tags', list()).append(tag)
-
+                create_tag_command(data, args)
             elif args.command == 'notag':
-                tag = get_tag(data, args.tag)
-                data['tags'].remove(tag)
-                for v in data["node_info"].values():
-                    if tag in v:
-                        v.remove(tag)
-
+                delete_tag_command(data, args)
             elif args.command == 'nodes':
-                if args.specifier is None:
-                    nodes = data['nodes']
-                else:
-                    nodes = get_matching_nodes(data, args.specifier)
-
-                for node in sorted(nodes):
-                    node_tag = data['node_info'].get(node, dict()).get('tag')
-                    if args.tag is None or node_tag in args.tag:
-                        print(node)
-
+                list_node_command(args, data)
             elif args.command == 'tags':
                 for tag in sorted(data['tags']):
                     print(tag)
             elif args.command == 'trigger':
                 pass
             elif args.command == 'info':
-                node = get_node(data, args.node_selector)
-                print('-------------------')
-                print('name: ' + node)
-                for key, value in data['node_info'].get(node, dict()).items():
-                    print(key + ':')
-                    print(value)
+                show_node_info_command(data, args)
             else:
                 raise ValueError(args.command)
 
             if TRIGGERS_CHANGE[args.command]:
                 subprocess.check_call(data['settings']['trigger'], shell=True)
 
+def node_command(data_file, args):
+    with with_clidi_data(data_file) as data:
+        item = data['node_info'].setdefault(get_node(data, args.node_selector), {})
+
+        if not args.edit:
+            item['note'] = args.note
+
+    new_value = editor.edit(contents=item['note'].encode('utf8'))
+    with with_clidi_data(data_file) as data:
+        data['node_info'][get_node(data, args.node_selector)]['note'] = new_value
+
+def config_command(args, data):
+    if args.list:
+        for key, item in data['settings'].items():
+            print(key, item)
+    elif args.set:
+        key, value = args.set
+        data['settings'][key] = value
+
+    else:
+        raise Exception('No action')
+
+def shell_command(data):
+    import IPython
+    IPython.embed()
+    IPython.start_ipython(user_ns=dict(data=data))
+
+def create_tag_command(data, args):
+    node = get_node(data, args.node)
+    if args.new:
+        tag = args.tag
+        data["tags"][tag] = list()
+    else:
+        tag = datastore.get_tag(data, args.tag)
+
+    data["node_info"].setdefault(node, dict())
+    data["node_info"][node].setdefault('tags', list()).append(tag)
+
+def delete_tag_command(data, args):
+    tag = datastore.get_tag(data, args.tag)
+    data['tags'].remove(tag)
+    for v in data["node_info"].values():
+        if tag in v:
+            v.remove(tag)
+
+def show_node_info_command(data, args):
+    node = get_node(data, args.node_selector)
+    print('-------------------')
+    print('name: ' + node)
+    for key, value in data['node_info'].get(node, dict()).items():
+        print(key + ':')
+        print(value)
+
+def list_node_command(args, data):
+    if args.specifier is None:
+        nodes = data['nodes']
+    else:
+        nodes = specifiers.get_matching_nodes(data, args.specifier)
+
+    for node in sorted(nodes):
+        node_tag = data['node_info'].get(node, dict()).get('tag')
+        if args.tag is None or node_tag in args.tag:
+            print(node)
+
+def delete_node_command(args, data):
+    for node in args.node:
+        if node in data['edges']:
+            del data['edges'][node]
+
+        if node in data['nodes']:
+            data['nodes'].remove(node)
+            data['node_info'].pop(node, None)
+
+    for graph_node in data['edges']:
+        for pair in list(data['edges'][graph_node]):
+            _, target = pair
+            if target in args.node:
+                data['edges'][graph_node].remove(pair)
+
+def show(args, data):
+    before_nodes = args.before and set.union(
+        *(
+            specifiers.get_matching_nodes(data, spec)
+            for spec in args.before))
+    after_nodes = args.after and set.union(
+        *(
+            specifiers.get_matching_nodes(data, spec)
+            for spec in args.after))
+
+    if args.around:
+        before_nodes = set.union(
+            before_nodes or set(),
+            *(specifiers.get_matching_nodes(data, spec) for spec in args.around))
+        after_nodes = set.union(
+            after_nodes or set(),
+            *(specifiers.get_matching_nodes(data, spec) for spec in args.around))
+
+    if args.highlight:
+        highlighted_nodes = set.union(
+            *(specifiers.get_matching_nodes(data, spec) for spec in args.highlight))
+    else:
+        highlighted_nodes = []
+
+    graph = None
+    if before_nodes:
+        graph = graph or empty_graph()
+        graph = graphs.merge_graphs(graph, *[graphs.before_graph(data, node) for node in before_nodes])
+
+    if after_nodes:
+        graph = graph or empty_graph()
+        graph = graphs.merge_graphs(graph, *[graphs.after_graph(data, node) for node in after_nodes])
+
+    if args.neighbours:
+        for specifier, depth in args.neighbours:
+            graph = graph or empty_graph()
+            seeds = specifiers.get_matching_nodes(data, specifier)
+            graph = graphs.merge_graphs(graph, *[
+                specifiers.neighbour_graph(data, seed, depth)
+                for seed in seeds])
+
+    if args.after_all and graph:
+        graph = graphs.merge_graphs(graph, *[graphs.after_graph(data, node) for node in graph["nodes"]])
+
+    if graph is None:
+        graph = root_graph(data)
+
+    print(render_graph(data, graph, highlighted_nodes))
+
+def create_node(data, args):
+    if args.name in data['nodes']:
+        raise Exception('Not {!r} already exists'.format(args.name))
+    data['nodes'].append(args.name)
+
+    if args.tag:
+        data['node_info'].setdefault(args.name, dict())['tag'] = args.tag
+
+    if args.from_nodes:
+        for from_node in args.from_nodes:
+            add_edge(data, from_node, args.name, label=args.label)
+
+    if args.to_nodes:
+        for to_node in args.to_nodes:
+            add_edge(data, args.name, to_node, label=args.label)
+
+def rename_command(data, old, new):
+    old, = [n for n in data['nodes'] if re.search(old, n)]
+
+    if new in data['nodes']:
+        raise Exception('{!r} is already a node'.format(new))
+
+    old_info = data['node_info'].pop(old, dict())
+    data['nodes'].remove(old)
+    data['nodes'].append(new)
+    if old in data['edges']:
+        data['edges'][new] = data['edges'].pop(old)
+
+    data['node_info'][new] = old_info
+
+    for source in list(data["edges"]):
+        data["edges"][source] = [
+            (label, new if target == old else target)
+            for label, target in data["edges"][source]]
+
 def get_node(data, source):
     source, = [n for n in data['nodes'] if re.search(source, n)]
     return source
-
-def get_tag(data, name):
-    tag, = [t for t in data['tags'] if re.search(name, t)]
-    return tag
-
-def get_matching_nodes(data, specifier):
-    result = set()
-
-    if specifier.startswith('neighbour:'):
-        _, rest = specifier.split(':', 1)
-        root_specifier, depth = rest.rsplit(':', 1)
-        root_nodes = get_matching_nodes(data, root_specifier)
-        return set(merge_graphs(*[
-            neighbour_graph(data, root, depth)
-            for root in root_nodes])["nodes"]) - set(root_nodes)
-    elif specifier.startswith('root:'):
-        result.update(get_roots(data))
-    elif specifier.startswith('tag:'):
-        _, tag = specifier.split(':', 1)
-        result.update(get_nodes(data, tag=tag))
-    else:
-        result.add(specifier)
-    return result
 
 def add_edge(data, source_string, target_string, label=DEFAULT):
     possible_sources = [n for n in data['nodes'] if re.search(source_string, n)]
@@ -547,7 +468,7 @@ def add_edge(data, source_string, target_string, label=DEFAULT):
         source, = possible_sources
     except:
         raise ValueError(possible_sources)
-    target, =  possible_targets
+    target, = possible_targets
     data['edges'].setdefault(source, [])
     data['edges'][source].append((label, target))
 
