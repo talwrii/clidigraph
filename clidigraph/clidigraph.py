@@ -147,6 +147,14 @@ def get_nodes(data, tag=None):
         if tag in info.get('tags', list()):
             yield name
 
+def get_roots(data):
+    nodes = set(data["nodes"])
+    for source in data["edges"]:
+        for _, target in data['edges'][source]:
+            if target in nodes:
+                nodes.remove(target)
+    return nodes
+
 DATA_LOCK = threading.Lock()
 @contextlib.contextmanager
 def with_data(data_file):
@@ -178,6 +186,21 @@ def reverse_graph(graph):
 
 def after_graph(graph, root, depth=None):
     result = dict(edges={}, nodes=set())
+
+def neighbour_graph(graph, root, depth):
+    if depth.startswith('+'):
+        down_depth = int(depth[1:])
+        up_depth = 0
+    elif depth.startswith('-'):
+        up_depth = int(depth[1:])
+        down_depth = 0
+    else:
+        up_depth = down_depth = int(depth)
+
+    return merge_graphs(
+        before_graph(graph, root, depth=up_depth),
+        after_graph(graph, root, depth=down_depth),
+        )
 
     visited = set()
 
@@ -378,23 +401,12 @@ def main():
 
                 if args.neighbours:
                     for specifier, depth in args.neighbours:
-                        if depth.startswith('+'):
-                            down_depth = int(depth[1:])
-                            up_depth = 0
-                        elif depth.startswith('-'):
-                            up_depth = int(depth[1:])
-                            down_depth = 0
-                        else:
-                            up_depth = down_depth = int(depth)
-
                         graph = graph or empty_graph()
                         seeds = get_spec_nodes(data, specifier)
                         graph = merge_graphs(graph, *[
-                            merge_graphs(
-                                before_graph(data, node, depth=up_depth),
-                                after_graph(data, node, depth=down_depth),
-                                )
-                            for node in seeds])
+                            neighbour_graph(data, seed, depth)
+                            for seed in seeds])
+
 
                 if graph is None:
                     graph = root_graph(data)
@@ -507,7 +519,17 @@ def get_tag(data, name):
 
 def get_spec_nodes(data, specifier):
     result = set()
-    if specifier.startswith('tag:'):
+
+    if specifier.startswith('neighbour:'):
+        _, rest = specifier.split(':', 1)
+        root_specifier, depth = rest.rsplit(':', 1)
+        root_nodes = get_spec_nodes(data, root_specifier)
+        return set(merge_graphs(*[
+            neighbour_graph(data, root, depth)
+            for root in root_nodes])["nodes"]) - set(root_nodes)
+    elif specifier.startswith('root:'):
+        result.update(get_roots(data))
+    elif specifier.startswith('tag:'):
         _, tag = specifier.split(':', 1)
         result.update(get_nodes(data, tag=tag))
     else:
