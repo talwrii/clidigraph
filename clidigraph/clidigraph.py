@@ -71,6 +71,9 @@ def build_parser():
         '--after', '-a', type=str, action='append',
         help='Show the nodes that can be reached from these nodes', )
     show_parser.add_argument(
+        '--after-all', '-A', action='store_true',
+        help='Add descendants to all selected node.')
+    show_parser.add_argument(
         '--neighbours', '-n', type=str,
         action='append', nargs=2,
         metavar=('NODE', 'DEPTH'),
@@ -184,9 +187,6 @@ def reverse_graph(graph):
 
     return result
 
-def after_graph(graph, root, depth=None):
-    result = dict(edges={}, nodes=set())
-
 def neighbour_graph(graph, root, depth):
     if depth.startswith('+'):
         down_depth = int(depth[1:])
@@ -201,6 +201,9 @@ def neighbour_graph(graph, root, depth):
         before_graph(graph, root, depth=up_depth),
         after_graph(graph, root, depth=down_depth),
         )
+
+def after_graph(graph, root, depth=None):
+    result = dict(edges={}, nodes=set())
 
     visited = set()
 
@@ -407,6 +410,8 @@ def main():
                             neighbour_graph(data, seed, depth)
                             for seed in seeds])
 
+                if args.after_all and graph:
+                    graph = merge_graphs(graph, *[after_graph(data, node) for node in graph["nodes"]])
 
                 if graph is None:
                     graph = root_graph(data)
