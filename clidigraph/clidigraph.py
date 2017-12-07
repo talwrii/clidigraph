@@ -76,7 +76,9 @@ def build_parser():
         metavar=('NODE', 'DEPTH'),
         help='Show node and neighbours up to a depth of DEPTH.'
         ' If depth is signed +2 or -2 then show parents or children')
-
+    show_parser.add_argument(
+        '--highlight', '-H', action='append',
+        type=str, help='Highlight nodes matching this specifier')
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -216,9 +218,15 @@ def merge_graph_pair(a, b):
             set(map(tuple, b['edges'].get(source, list())))))
     return result
 
+HIGHLIGHT_COLOR = 'yellow'
+
 def get_tag_color(tag, data):
     tags = sorted(data['tags'])
     colors = ('pink', 'lightgreen', 'blue', 'lightpurple', 'orange', 'green')
+
+    if HIGHLIGHT_COLOR in colors:
+        raise ValueError((HIGHLIGHT_COLOR, colors))
+
     if len(tag) > len(colors):
         raise Exception('Too many colors')
 
@@ -231,7 +239,7 @@ def root_graph(data):
     return dict(nodes=data['nodes'], edges=data['edges'])
 
 
-def render_graph(data, graph):
+def render_graph(data, graph, highlighted_nodes):
     rendered_nodes = set()
     graphviz_graph = graphviz.Digraph()
 
@@ -241,10 +249,17 @@ def render_graph(data, graph):
         tags = node_info.get('tags')
 
         tag = sorted(tags)[0] if tags else None
+        kwargs = dict()
+
         if tag:
-            kwargs = dict(tooltip='tag:' + tag, fillcolor=get_tag_color(tag, data), style='filled')
-        else:
-            kwargs = dict()
+            kwargs["tooltip"] = 'tag:' + tag
+
+        if name in highlighted_nodes:
+            kwargs["fillcolor"] = HIGHLIGHT_COLOR
+            kwargs["style"] = 'filled'
+        elif tag:
+            kwargs["fillcolor"] = get_tag_color(tag, data)
+            kwargs["style"] = 'filled'
 
         if node_info.get('note', None):
             kwargs['peripheries'] = '2'
@@ -345,6 +360,12 @@ def main():
                     after_nodes = set.union(
                         after_nodes or set(),
                         *(get_spec_nodes(data, spec) for spec in args.around))
+
+                if args.highlight:
+                    highlighted_nodes = set.union(
+                        *(get_spec_nodes(data, spec) for spec in args.highlight))
+                else:
+                    highlighted_nodes = []
 
                 graph = None
                 if before_nodes:
