@@ -517,7 +517,6 @@ def label_edge(data, source_string, target_string, label):
 
     edges = []
     for label, neighbour in data['edges'][source]:
-        print(neighbour)
         if neighbour == target:
             edges.append((source, target, label))
 
