@@ -329,7 +329,7 @@ def node_command(data_file, args):
         if not args.edit:
             item['note'] = args.note
 
-    new_value = editor.edit(contents=item['note'].encode('utf8'))
+    new_value = editor.edit(contents=item.get('note', '').encode('utf8')).decode('utf8')
     with with_clidi_data(data_file) as data:
         data['node_info'][get_node(data, args.node_selector)]['note'] = new_value
 
