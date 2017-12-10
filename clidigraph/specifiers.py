@@ -1,5 +1,6 @@
 "Selecting nodes in graphs"
 
+import re
 
 from . import graphs
 from . import datastore
@@ -24,7 +25,8 @@ def get_matching_nodes(data, specifier):
         else:
             raise ValueError(specifier)
     else:
-        result.add(specifier)
+        found_node, = [node for node in data['nodes'] if re.search(specifier, node)]
+        result.add(found_node)
     return result
 
 def neighbour_graph(graph, root, depth):
