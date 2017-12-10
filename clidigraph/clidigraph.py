@@ -1,8 +1,10 @@
 # pylint: disable=locally-disabled
 # make code as python 3 compatible as possible
-from __future__ import absolute_import, division, print_function, unicode_literals
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import argparse
+import collections
 import contextlib
 import json
 import logging
@@ -17,8 +19,7 @@ import graphviz
 
 import editor
 
-from . import specifiers
-from . import graphs
+from . import graphs, specifiers
 
 if sys.version_info[0] != 3:
     # FileNotFoundError does not exist in python 2
@@ -86,6 +87,9 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     show_parser.add_argument(
         '--highlight', '-H', action='append',
         type=str, help='Highlight nodes matching this specifier')
+    show_parser.add_argument(
+        '--group', '-G', action='append',
+        type=str, metavar=('name', 'selector'), help='Place these node in a group. And color them the same color', nargs=2)
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -161,17 +165,23 @@ def with_data(data_file):
 
 HIGHLIGHT_COLOR = 'yellow'
 
-def get_tag_color(tag, data):
+def get_tag_color(tag, groups, data):
+    groups = set(groups)
     tags = sorted(data['tags'])
-    colors = ('pink', 'lightgreen', 'blue', 'lightpurple', 'orange', 'green')
+
+    if groups & set(tags):
+        raise ValueError(groups & set(tags))
+
+    colors = ('pink', 'lightgreen', 'lightblue', 'lightpurple', 'orange', 'green')
 
     if HIGHLIGHT_COLOR in colors:
         raise ValueError((HIGHLIGHT_COLOR, colors))
 
-    if len(tag) > len(colors):
-        raise Exception('Too many colors')
+    required_colors = set(tags) | set(groups)
+    if len(required_colors) > len(colors):
+        raise Exception('Too many colors {}'.format(required_colors))
 
-    return dict(zip(tags, colors))[tag]
+    return dict(zip(sorted(tags) + sorted(groups), colors))[tag]
 
 def empty_graph():
     return dict(nodes=list(), edges={})
@@ -179,7 +189,7 @@ def empty_graph():
 def root_graph(data):
     return dict(nodes=data['nodes'], edges=data['edges'])
 
-def render_graph(data, graph, highlighted_nodes):
+def render_graph(data, graph, highlighted_nodes, grouped_nodes):
     rendered_nodes = set()
     graphviz_graph = graphviz.Digraph()
 
@@ -193,13 +203,31 @@ def render_graph(data, graph, highlighted_nodes):
 
         if tag:
             kwargs["tooltip"] = 'tag:' + tag
+        else:
+            kwargs["tooltip"] = ''
 
-        if name in highlighted_nodes:
+        if name in (set.union(*grouped_nodes.values()) if grouped_nodes else set()):
+            for group_name, nodes in grouped_nodes.items():
+                if name in nodes:
+                    kwargs["fillcolor"] = get_tag_color(group_name, grouped_nodes, data)
+                    kwargs["style"] = 'filled'
+                    break
+            else:
+                raise Exception('unreachable')
+        elif name in highlighted_nodes:
             kwargs["fillcolor"] = HIGHLIGHT_COLOR
             kwargs["style"] = 'filled'
         elif tag:
-            kwargs["fillcolor"] = get_tag_color(tag, data)
+            kwargs["fillcolor"] = get_tag_color(tag, grouped_nodes, data)
             kwargs["style"] = 'filled'
+
+        if name in highlighted_nodes:
+            kwargs["tooltip"] += '\nhighlighted\n'
+
+        if name in (set.union(*grouped_nodes.values()) if grouped_nodes else set()):
+            for group_name, nodes in grouped_nodes.items():
+                if name in nodes:
+                    kwargs["tooltip"] += '\ngroup:' + group_name
 
         if node_info.get('note', None):
             kwargs['peripheries'] = '2'
@@ -391,6 +419,14 @@ def show(args, data):
             after_nodes or set(),
             *(specifiers.get_matching_nodes(data, spec) for spec in args.around))
 
+    if args.group:
+        grouped_nodes = collections.OrderedDict()
+        for name, selector in args.group:
+            grouped_nodes[name] = specifiers.get_matching_nodes(data, selector)
+    else:
+        grouped_nodes = dict()
+
+
     if args.highlight:
         highlighted_nodes = set.union(
             *(specifiers.get_matching_nodes(data, spec) for spec in args.highlight))
@@ -420,7 +456,7 @@ def show(args, data):
     if graph is None:
         graph = root_graph(data)
 
-    print(render_graph(data, graph, highlighted_nodes))
+    print(render_graph(data, graph, highlighted_nodes, grouped_nodes))
 
 def create_node(data, args):
     if args.name in data['nodes']:

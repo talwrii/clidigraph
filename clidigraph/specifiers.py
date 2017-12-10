@@ -8,18 +8,21 @@ from . import datastore
 def get_matching_nodes(data, specifier):
     result = set()
 
-    if specifier.startswith('neighbour:'):
-        _, rest = specifier.split(':', 1)
-        root_specifier, depth = rest.rsplit(':', 1)
-        root_nodes = get_matching_nodes(data, root_specifier)
-        return set(graphs.merge_graphs(*[
-            neighbour_graph(data, root, depth)
-            for root in root_nodes])["nodes"]) - set(root_nodes)
-    elif specifier.startswith('root:'):
-        result.update(get_roots(data))
-    elif specifier.startswith('tag:'):
-        _, tag = specifier.split(':', 1)
-        result.update(get_nodes(data, tag=tag))
+    if ':' in specifier:
+        if specifier.startswith('neighbour:'):
+            _, rest = specifier.split(':', 1)
+            root_specifier, depth = rest.rsplit(':', 1)
+            root_nodes = get_matching_nodes(data, root_specifier)
+            return set(graphs.merge_graphs(*[
+                neighbour_graph(data, root, depth)
+                for root in root_nodes])["nodes"]) - set(root_nodes)
+        elif specifier.startswith('root:'):
+            result.update(get_roots(data))
+        elif specifier.startswith('tag:'):
+            _, tag = specifier.split(':', 1)
+            result.update(get_nodes(data, tag=tag))
+        else:
+            raise ValueError(specifier)
     else:
         result.add(specifier)
     return result
