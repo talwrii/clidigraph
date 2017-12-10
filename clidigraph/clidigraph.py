@@ -529,16 +529,17 @@ def label_edge(data, source_string, target_string, label):
         raise Exception('No edges from {}'.format(source))
 
     edges = []
-    for label, neighbour in data['edges'][source]:
+    for neighbour_label, neighbour in data['edges'][source]:
         if neighbour == target:
-            edges.append((source, target, label))
+            edges.append((source, neighbour_label, target))
 
     if len(edges) > 1:
         raise Exception('Too many edges {}'.format(edges))
     elif len(edges) == 0:
         raise Exception('Too few edges')
     else:
-        data['edges'][source] = [(x, l) for x, l in data['edges'][source] if x != target] + [(label, target)]
+        new_neighbours = [(l, x) for l, x in data['edges'][source] if x != target] + [(label, target)]
+        data['edges'][source] = new_neighbours
 
 
 @contextlib.contextmanager
