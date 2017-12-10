@@ -79,6 +79,11 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
         '--after-all', '-A', action='store_true',
         help='Add descendants to all selected node.')
     show_parser.add_argument(
+        '--between', '-B', type=str,
+        action='append', nargs=2,
+        metavar=('FROM', 'TWO'),
+        help='Include nodes between these two specifiers')
+    show_parser.add_argument(
         '--neighbours', '-n', type=str,
         action='append', nargs=2,
         metavar=('NODE', 'DEPTH'),
@@ -437,6 +442,14 @@ def show(args, data):
     if before_nodes:
         graph = graph or empty_graph()
         graph = graphs.merge_graphs(graph, *[graphs.before_graph(data, node) for node in before_nodes])
+
+    if args.between:
+        graph = graph or empty_graph()
+        for from_spec, to_spec in args.between:
+            from_nodes = specifiers.get_matching_nodes(data, from_spec)
+            to_nodes = specifiers.get_matching_nodes(data, to_spec)
+            graph = graphs.merge_graphs(graph, graphs.between_graph(data, from_nodes, to_nodes))
+
 
     if after_nodes:
         graph = graph or empty_graph()

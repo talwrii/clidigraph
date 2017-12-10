@@ -14,7 +14,33 @@ def merge_graph_pair(a, b):
         result['edges'][source] = list(set.union(
             set(map(tuple, a['edges'].get(source, list()))),
             set(map(tuple, b['edges'].get(source, list())))))
+
     return result
+
+def between_graph(graph:dict, from_nodes:set, to_nodes:set) -> dict:
+    # This is O(n) but n is small
+
+    before_graphs = merge_graphs(*(before_graph(graph, n) for n in to_nodes))
+    after_graphs = merge_graphs(*(after_graph(graph, n) for n in from_nodes))
+    return intersect_graph(before_graphs, after_graphs)
+
+def intersect_graph(a, b):
+    nodes = set.intersection(set(a['nodes']), set(b['nodes']))
+    return edge_set_to_graph(
+        nodes,
+        set.intersection(edge_set(a), edge_set(b)))
+
+def edge_set(graph):
+    return set((a, b, c) for a in graph['edges'] for b, c in graph['edges'][a])
+
+def edge_set_to_graph(nodes, sett):
+    all_nodes = set(itertools.chain.from_iterable((a, b) for (a, _, b) in sett)) | set(nodes)
+    edge_dict = dict()
+    for a, b, c in sett:
+        edge_dict.setdefault(a, list())
+        edge_dict[a].append((b, c))
+    return dict(edges=edge_dict, nodes=all_nodes)
+
 
 def before_graph(graph, x, depth=None):
     "Return the subgraph of things leading to x."
