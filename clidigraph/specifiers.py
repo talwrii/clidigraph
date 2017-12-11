@@ -1,10 +1,18 @@
 "Selecting nodes in graphs"
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import re
 
-from . import graphs
-from . import datastore
+from . import graphs, datastore
 
+
+def get_node(data, source):
+    if source.startswith('raw:'):
+        result, = [n for n in data['nodes'] if source == n.split(':', 1)[1]]
+    else:
+        result, = [n for n in data['nodes'] if re.search(source, n)]
+    return result
 
 def get_matching_nodes(data, specifier):
     result = set()

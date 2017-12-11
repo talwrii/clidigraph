@@ -295,8 +295,8 @@ def main(): # pylint: disable=too-many-branches
             elif args.command == 'label':
                 label_edge(data, args.source, args.target, args.label or DEFAULT)
             elif args.command == 'noedge':
-                source = get_node(data, args.source)
-                target = get_node(data, args.target)
+                source = specifiers.get_node(data, args.source)
+                target = specifiers.get_node(data, args.target)
                 data['edges'][source].remove([args.label, target])
             elif args.command == 'show':
                 show(args, data)
@@ -329,14 +329,14 @@ def main(): # pylint: disable=too-many-branches
 
 def node_command(data_file, args):
     with with_clidi_data(data_file) as data:
-        item = data['node_info'].setdefault(get_node(data, args.node_selector), {})
+        item = data['node_info'].setdefault(specifiers.get_node(data, args.node_selector), {})
 
         if not args.edit:
             item['note'] = args.note
 
     new_value = editor.edit(contents=item.get('note', '').encode('utf8')).decode('utf8')
     with with_clidi_data(data_file) as data:
-        data['node_info'][get_node(data, args.node_selector)]['note'] = new_value
+        data['node_info'][specifiers.get_node(data, args.node_selector)]['note'] = new_value
 
 def config_command(args, data):
     if args.list:
@@ -355,7 +355,7 @@ def shell_command(data):
     IPython.start_ipython(user_ns=dict(data=data))
 
 def create_tag_command(data, args):
-    node = get_node(data, args.node)
+    node = specifiers.get_node(data, args.node)
     if args.new:
         tag = args.tag
         data["tags"][tag] = list()
@@ -373,7 +373,7 @@ def delete_tag_command(data, args):
             v.remove(tag)
 
 def show_node_info_command(data, args):
-    node = get_node(data, args.node_selector)
+    node = specifiers.get_node(data, args.node_selector)
     print('-------------------')
     print('name: ' + node)
     for key, value in data['node_info'].get(node, dict()).items():
@@ -505,10 +505,6 @@ def rename_command(data, old, new):
         data["edges"][source] = [
             (label, new if target == old else target)
             for label, target in data["edges"][source]]
-
-def get_node(data, source):
-    source, = [n for n in data['nodes'] if re.search(source, n)]
-    return source
 
 def add_edge(data, source_string, target_string, label=DEFAULT):
     possible_sources = [n for n in data['nodes'] if re.search(source_string, n)]
