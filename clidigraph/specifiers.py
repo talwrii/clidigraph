@@ -9,7 +9,7 @@ from . import graphs, datastore
 
 def get_node(data, source):
     if source.startswith('raw:'):
-        result, = [n for n in data['nodes'] if source == n.split(':', 1)[1]]
+        result, = [n for n in data['nodes'] if n == source.split(':', 1)[1]]
     else:
         result, = [n for n in data['nodes'] if re.search(source, n)]
     return result
@@ -30,6 +30,9 @@ def get_matching_nodes(data, specifier):
         elif specifier.startswith('tag:'):
             _, tag = specifier.split(':', 1)
             result.update(get_nodes(data, tag=tag))
+        elif specifier.startswith('raw:'):
+            single, = [n for n in data["nodes"] if n == specifier.split(':')[1]]
+            result.add(single)
         else:
             raise ValueError(specifier)
     else:
