@@ -324,8 +324,9 @@ def main(): # pylint: disable=too-many-branches
             else:
                 raise ValueError(args.command)
 
-            if TRIGGERS_CHANGE[args.command]:
-                subprocess.check_call(data['settings']['trigger'], shell=True)
+    if TRIGGERS_CHANGE[args.command]:
+        LOGGER.debug('Triggering change')
+        subprocess.check_call(data['settings']['trigger'], shell=True)
 
 def note_command(data_file, args):
     with with_clidi_data(data_file) as data:
