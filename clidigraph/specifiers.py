@@ -15,29 +15,37 @@ def get_node(data, source):
     return result
 
 def get_matching_nodes(data, specifier):
+
+    if specifier.startswith('raw:'):
+        single, = [n for n in data["nodes"] if n == specifier.split(':')[1]]
+        return set([single])
+
+    if ',' in specifier:
+        return set.union(*(get_matching_nodes(data, s) for s in specifier.split(',')))
     result = set()
 
     if ':' in specifier:
+        head, rest = specifier.split(':', 1)
         if specifier.startswith('neighbour:'):
             _, rest = specifier.split(':', 1)
-            root_specifier, depth = rest.rsplit(':', 1)
+            depth, root_specifier = rest.split(':', 1)
             root_nodes = get_matching_nodes(data, root_specifier)
             return set(graphs.merge_graphs(*[
                 neighbour_graph(data, root, depth)
                 for root in root_nodes])["nodes"]) - set(root_nodes)
+        elif head == 'before':
+            bases = get_matching_nodes(data, rest)
+            before_graph = graphs.merge_graphs(*(graphs.before_graph(data, b) for b in bases))
+            return set(before_graph['nodes'])
         elif specifier.startswith('root:'):
             result.update(get_roots(data))
         elif specifier.startswith('tag:'):
             _, tag = specifier.split(':', 1)
             result.update(get_nodes(data, tag=tag))
-        elif specifier.startswith('raw:'):
-            single, = [n for n in data["nodes"] if n == specifier.split(':')[1]]
-            result.add(single)
         else:
             raise ValueError(specifier)
     else:
-        found_node, = [node for node in data['nodes'] if re.search(specifier, node)]
-        result.add(found_node)
+        result |= set([node for node in data['nodes'] if re.search(specifier, node)])
     return result
 
 def neighbour_graph(graph, root, depth):

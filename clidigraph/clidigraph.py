@@ -28,7 +28,6 @@ if sys.version_info[0] != 3:
 
 LOGGER = logging.getLogger()
 
-DEFAULT = 'default'
 
 def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-statements
     parser = argparse.ArgumentParser(description='Maintain a labelled digraph')
@@ -95,6 +94,10 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     show_parser.add_argument(
         '--group', '-G', action='append',
         type=str, metavar=('name', 'selector'), help='Place these node in a group. And color them the same color', nargs=2)
+    show_parser.add_argument(
+        '--contract', '-C', type=str, action='append',
+        metavar='selector_list',
+        help='Place these node in a group. And color them the same color')
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -120,7 +123,7 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
         '--to', '-t', type=str, action='append', dest='to_nodes',
         help='Add a link to this node')
     node_parser.add_argument(
-        '--label', '-l', type=str, default=DEFAULT,
+        '--label', '-l', type=str, default=graphs.DEFAULT,
         help='Mark edges with this label')
 
     label_parser = parsers.add_parser('label', help='Label an existing edge')
@@ -131,7 +134,7 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     edge_parser = parsers.add_parser('edge', help='Add an edge')
     edge_parser.add_argument('source', type=str)
     edge_parser.add_argument('target', type=str)
-    edge_parser.add_argument('label', type=str, default=DEFAULT, nargs='?')
+    edge_parser.add_argument('label', type=str, default=graphs.DEFAULT, nargs='?')
 
     notes_parser = parsers.add_parser('note', help='Change the node associates with an entry')
     notes_parser.add_argument('node_selector', type=str)
@@ -143,9 +146,10 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     no_edge = parsers.add_parser('noedge', help='Remove an edge')
     no_edge.add_argument('source', type=str)
     no_edge.add_argument('target', type=str)
-    no_edge.add_argument('label', type=str, default=DEFAULT, nargs='?')
+    no_edge.add_argument('label', type=str, default=graphs.DEFAULT, nargs='?')
 
     return parser
+
 
 def read_json(filename):
     if os.path.exists(filename):
@@ -256,8 +260,10 @@ def render_graph(data, graph, highlighted_nodes, grouped_nodes):
                 rendered_nodes.add(target)
                 render_node(target)
 
-            if label == DEFAULT:
+            if label == graphs.DEFAULT:
                 graphviz_graph.edge(source, target)
+            elif label == graphs.IMPLICIT:
+                graphviz_graph.edge(source, target, style='dashed')
             else:
                 graphviz_graph.edge(source, target, label=label)
 
@@ -293,7 +299,7 @@ def main(): # pylint: disable=too-many-branches
             elif args.command == 'edge':
                 add_edge(data, args.source, args.target, args.label)
             elif args.command == 'label':
-                label_edge(data, args.source, args.target, args.label or DEFAULT)
+                label_edge(data, args.source, args.target, args.label or graphs.DEFAULT)
             elif args.command == 'noedge':
                 source = specifiers.get_node(data, args.source)
                 target = specifiers.get_node(data, args.target)
@@ -467,8 +473,13 @@ def show(args, data):
     if args.after_all and graph:
         graph = graphs.merge_graphs(graph, *[graphs.after_graph(data, node) for node in graph["nodes"]])
 
+
     if graph is None:
         graph = root_graph(data)
+
+    if args.contract is not None:
+        contraction_nodes = set.union(*(specifiers.get_matching_nodes(data, spec) for spec in args.contract))
+        graph = graphs.contract_graph(graph, contraction_nodes)
 
     print(render_graph(data, graph, highlighted_nodes, grouped_nodes))
 
@@ -507,7 +518,7 @@ def rename_command(data, old, new):
             (label, new if target == old else target)
             for label, target in data["edges"][source]]
 
-def add_edge(data, source_string, target_string, label=DEFAULT):
+def add_edge(data, source_string, target_string, label=graphs.DEFAULT):
     source = specifiers.get_node(data, source_string)
     target = specifiers.get_node(data, target_string)
     data['edges'].setdefault(source, [])

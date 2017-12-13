@@ -3,6 +3,9 @@
 import functools
 import itertools
 
+DEFAULT = 'default'
+IMPLICIT = 'implicit'
+
 def merge_graphs(*graphs):
     return functools.reduce(merge_graph_pair, graphs)
 
@@ -40,7 +43,6 @@ def edge_set_to_graph(nodes, sett):
         edge_dict.setdefault(a, list())
         edge_dict[a].append((b, c))
     return dict(edges=edge_dict, nodes=all_nodes)
-
 
 def before_graph(graph, x, depth=None):
     "Return the subgraph of things leading to x."
@@ -81,4 +83,33 @@ def after_graph(graph, root, depth=None):
             break
 
         border = new_border
+    return result
+
+def contract_graph(graph, kept_nodes):
+    # ignore labels for the moment
+    result = dict(edges={}, nodes=set())
+
+    for node in kept_nodes:
+        result['nodes'].add(node)
+        pseudo_neighbours = set([node])
+
+        for _, neighbour in graph['edges'].get(node, []):
+            if neighbour in kept_nodes:
+                result['edges'].setdefault(node, [])
+                result['edges'][node].append((DEFAULT, neighbour))
+
+        visited = set()
+        while pseudo_neighbours - visited:
+            border = set()
+            for base in pseudo_neighbours - visited:
+                for _, target in graph['edges'].get(base, []):
+                    if target in kept_nodes:
+                        result['edges'].setdefault(node, [])
+                        if (DEFAULT, target) not in result['edges'].get(node, []):
+                            if (IMPLICIT, target) not in result['edges'].get(node, []):
+                                result['edges'][node].append((IMPLICIT, target))
+                    else:
+                        border.add(target)
+            visited |= pseudo_neighbours
+            pseudo_neighbours |= border
     return result
