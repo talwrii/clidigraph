@@ -514,8 +514,8 @@ def add_edge(data, source_string, target_string, label=DEFAULT):
     data['edges'][source].append((label, target))
 
 def label_edge(data, source_string, target_string, label):
-    source, = [n for n in data['nodes'] if re.search(source_string, n)]
-    target, = [n for n in data['nodes'] if re.search(target_string, n)]
+    source = specifiers.get_node(data, source_string)
+    target = specifiers.get_node(data, target_string)
 
     if source not in data['edges']:
         raise Exception('No edges from {}'.format(source))
