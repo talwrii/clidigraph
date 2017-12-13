@@ -278,7 +278,7 @@ def main(): # pylint: disable=too-many-branches
     data_file = os.path.join(args.config_dir, args.graph)
 
     if args.command == 'note':
-        node_command(data_file, args)
+        note_command(data_file, args)
     else:
         with with_clidi_data(data_file) as data:
             for key, value in DEFAULT_SETTINGS.items():
@@ -327,7 +327,7 @@ def main(): # pylint: disable=too-many-branches
             if TRIGGERS_CHANGE[args.command]:
                 subprocess.check_call(data['settings']['trigger'], shell=True)
 
-def node_command(data_file, args):
+def note_command(data_file, args):
     with with_clidi_data(data_file) as data:
         item = data['node_info'].setdefault(specifiers.get_node(data, args.node_selector), {})
 
