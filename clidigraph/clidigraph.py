@@ -508,13 +508,8 @@ def rename_command(data, old, new):
             for label, target in data["edges"][source]]
 
 def add_edge(data, source_string, target_string, label=DEFAULT):
-    possible_sources = [n for n in data['nodes'] if re.search(source_string, n)]
-    possible_targets = [n for n in data['nodes'] if re.search(target_string, n)]
-    try:
-        source, = possible_sources
-    except:
-        raise ValueError(possible_sources)
-    target, = possible_targets
+    source = specifiers.get_node(data, source_string)
+    target = specifiers.get_node(data, target_string)
     data['edges'].setdefault(source, [])
     data['edges'][source].append((label, target))
 
