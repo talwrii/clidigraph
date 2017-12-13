@@ -446,7 +446,7 @@ def show(args, data):
         highlighted_nodes = []
 
     graph = None
-    if before_nodes:
+    if before_nodes is not None:
         graph = graph or empty_graph()
         graph = graphs.merge_graphs(graph, *[graphs.before_graph(data, node) for node in before_nodes])
 
@@ -458,7 +458,7 @@ def show(args, data):
             graph = graphs.merge_graphs(graph, graphs.between_graph(data, from_nodes, to_nodes))
 
 
-    if after_nodes:
+    if after_nodes is not None:
         graph = graph or empty_graph()
         graph = graphs.merge_graphs(graph, *[graphs.after_graph(data, node) for node in after_nodes])
 
