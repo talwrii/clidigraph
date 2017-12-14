@@ -36,7 +36,8 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     parser.add_argument('--graph', type=str, default='graph')
     parsers = parser.add_subparsers(dest='command')
 
-    parsers.add_parser('tags', help='Show tags')
+    tags_parser = parsers.add_parser('tags', help='Show tags')
+    tags_parser.add_argument('specifier', type=str, nargs='?', help='For these nodes')
 
     nodes_parser = parsers.add_parser('nodes', help='Show nodes')
     nodes_parser.add_argument('specifier', type=str, nargs='?')
@@ -50,6 +51,14 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     tag_parser.add_argument('tag', type=str)
     tag_parser.add_argument('node', type=str)
     tag_parser.add_argument('--new', '-n', action='store_true', help='Create a new tag')
+
+    tag_parser = parsers.add_parser('move-tag', help='Move one tag to another')
+    tag_parser.add_argument('source', type=str)
+    tag_parser.add_argument('target', type=str)
+
+    tag_parser = parsers.add_parser('untag', help='Remove a tag from a node')
+    tag_parser.add_argument('specifier', type=str)
+    tag_parser.add_argument('tag', type=str)
 
     notag_parser = parsers.add_parser('notag', help='Delete a tag')
     notag_parser.add_argument('tag', type=str)
@@ -229,14 +238,27 @@ def main(): # pylint: disable=too-many-branches
                     data,
                     args)
             elif args.command == 'tag':
-                create_tag_command(data, args)
+                add_tag_command(data, args)
+            elif args.command == 'move-tag':
+                move_tag_command(data, args)
+            elif args.command == 'untag':
+                untag_command(data, args)
             elif args.command == 'notag':
                 delete_tag_command(data, args)
             elif args.command == 'nodes':
                 list_node_command(args, data)
             elif args.command == 'tags':
-                for tag in sorted(data['tags']):
-                    print(tag)
+                if args.specifier is None:
+                    for tag in sorted(data['tags']):
+                        print(tag)
+                else:
+                    result = set()
+                    for node in specifiers.get_matching_nodes(data, args.specifier):
+                        print(node)
+                        tags = data['node_info'][node].get('tags', [])
+                        result.update(tags)
+                    for tag in sorted(result):
+                        print(tag)
             elif args.command == 'trigger':
                 pass
             elif args.command == 'info':
@@ -275,7 +297,7 @@ def shell_command(data):
     IPython.embed()
     IPython.start_ipython(user_ns=dict(data=data))
 
-def create_tag_command(data, args):
+def add_tag_command(data, args):
     node = specifiers.get_node(data, args.node)
     if args.new:
         tag = args.tag
@@ -285,6 +307,20 @@ def create_tag_command(data, args):
 
     data["node_info"].setdefault(node, dict())
     data["node_info"][node].setdefault('tags', list()).append(tag)
+
+def untag_command(data, args):
+    for node in specifiers.get_matching_nodes(data, args.specifier):
+        if node in data["node_info"] and 'tags' in data['node_info'][node]:
+            if args.tag in data["node_info"][node]['tags']:
+                data["node_info"][node]['tags'].remove(args.tag)
+
+def move_tag_command(data, args):
+    data['tags'][args.target] = data['tags'].pop(args.source)
+    for v in data["node_info"].values():
+        if 'tags' in v:
+            if args.source in v['tags']:
+                v['tags'].remove(args.source)
+                v['tags'].append(args.source)
 
 def delete_tag_command(data, args):
     tag = datastore.get_tag(data, args.tag)
@@ -479,21 +515,23 @@ def with_clidi_data(data_file):
         yield data
 
 
-TRIGGERS_CHANGE = dict(
-    show=False,
-    info=False,
-    node=True,
-    config=False,
-    nodes=False,
-    edge=True,
-    dump=False,
-    nonode=True,
-    trigger=True,
-    shell=True,
-    noedge=True,
-    rename=True,
-    tag=True,
-    tags=False,
-    notag=True,
-    label=True,
-    note=True)
+TRIGGERS_CHANGE = {
+    'config': False,
+    'dump': False,
+    'edge': True,
+    'info': False,
+    'label': True,
+    'node': True,
+    'nodes': False,
+    'noedge': True,
+    'nonode': True,
+    'notag': True,
+    'note': True,
+    'rename': True,
+    'shell': True,
+    'show': False,
+    'tag': True,
+    'tags': False,
+    'trigger': True,
+    'move-tag': True,
+    'untag': True}
