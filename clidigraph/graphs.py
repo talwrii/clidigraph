@@ -95,10 +95,11 @@ def contract_graph(graph, kept_nodes):
         result['nodes'].add(node)
         pseudo_neighbours = set([node])
 
-        for _, neighbour in graph['edges'].get(node, []):
+        for label, neighbour in graph['edges'].get(node, []):
             if neighbour in kept_nodes:
                 result['edges'].setdefault(node, [])
-                result['edges'][node].append((DEFAULT, neighbour))
+                # Maintain labels for not implied edges
+                result['edges'][node].append((label, neighbour))
 
         visited = set()
         while pseudo_neighbours - visited:
@@ -107,9 +108,8 @@ def contract_graph(graph, kept_nodes):
                 for _, target in graph['edges'].get(base, []):
                     if target in kept_nodes:
                         result['edges'].setdefault(node, [])
-                        if (DEFAULT, target) not in result['edges'].get(node, []):
-                            if (IMPLICIT, target) not in result['edges'].get(node, []):
-                                result['edges'][node].append((IMPLICIT, target))
+                        if target not in [t for _, t in result['edges'].get(node, [])]:
+                            result['edges'][node].append((IMPLICIT, target))
                     else:
                         border.add(target)
             visited |= pseudo_neighbours
