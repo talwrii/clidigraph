@@ -180,8 +180,9 @@ def get_tag_color(tag, groups, data):
 
     if groups & set(tags):
         raise ValueError(groups & set(tags))
-
-    colors = ('pink', 'lightgreen', 'lightblue', 'lightpurple', 'orange', 'green')
+    # Colors can be found here:
+    # http://graphviz.org/doc/info/colors.html
+    colors = ('pink', 'lightgreen', 'lightblue', 'bisque', 'orange', 'green')
 
     if HIGHLIGHT_COLOR in colors:
         raise ValueError((HIGHLIGHT_COLOR, colors))
