@@ -35,12 +35,17 @@ def get_matching_nodes(data, specifier):
                 for root in root_nodes])["nodes"]) - set(root_nodes)
         elif head == 'not':
             return set(data["nodes"]) - get_matching_nodes(data, rest)
+        elif head == 'strict-before':
+            bases = get_matching_nodes(data, rest)
+            nodes = set()
+            for b in bases:
+                nodes |= (set(graphs.before_graph(data, b)['nodes']) - set([b]))
+            return nodes
         elif head == 'strict-after':
             bases = get_matching_nodes(data, rest)
             nodes = set()
             for b in bases:
                 nodes |= (graphs.after_graph(data, b)['nodes']  - set([b]))
-
             return nodes
         elif head == 'after':
             bases = get_matching_nodes(data, rest)
