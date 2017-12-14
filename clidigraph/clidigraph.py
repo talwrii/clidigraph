@@ -111,6 +111,10 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
         '--nodes', '-N', type=str, action='append',
         metavar='selector',
         help='Include items matching this selector')
+    show_parser.add_argument(
+        '--no-label', type=str, action='append',
+        help='Exclude these labels from the graph')
+
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -395,49 +399,57 @@ def show(args, data):
     else:
         highlighted_nodes = []
 
+    input_graph = data
+
     graph = None
+
+    if args.no_label:
+        for label in args.no_label:
+            input_graph = graphs.remove_label(input_graph, label)
+
+
     if before_nodes is not None:
         graph = graph or empty_graph()
-        graph = graphs.merge_graphs(graph, *[graphs.before_graph(data, node) for node in before_nodes])
+        graph = graphs.merge_graphs(graph, *[graphs.before_graph(input_graph, node) for node in before_nodes])
 
     if args.between:
         graph = graph or empty_graph()
         for from_spec, to_spec in args.between:
-            from_nodes = specifiers.get_matching_nodes(data, from_spec)
-            to_nodes = specifiers.get_matching_nodes(data, to_spec)
-            graph = graphs.merge_graphs(graph, graphs.between_graph(data, from_nodes, to_nodes))
+            from_nodes = specifiers.get_matching_nodes(input_graph, from_spec)
+            to_nodes = specifiers.get_matching_nodes(input_graph, to_spec)
+            graph = graphs.merge_graphs(graph, graphs.between_graph(input_graph, from_nodes, to_nodes))
 
     if args.nodes:
         graph = graph or empty_graph()
         induction_nodes = set()
         for spec in args.nodes:
-            induction_nodes |= set(specifiers.get_matching_nodes(data, spec))
+            induction_nodes |= set(specifiers.get_matching_nodes(input_graph, spec))
 
 
-        graph = graphs.merge_graphs(graph, graphs.induce_graph(data, induction_nodes))
+        graph = graphs.merge_graphs(graph, graphs.induce_graph(input_graph, induction_nodes))
 
 
     if after_nodes is not None:
         graph = graph or empty_graph()
-        graph = graphs.merge_graphs(graph, *[graphs.after_graph(data, node) for node in after_nodes])
+        graph = graphs.merge_graphs(graph, *[graphs.after_graph(input_graph, node) for node in after_nodes])
 
     if args.neighbours:
         for specifier, depth in args.neighbours:
             graph = graph or empty_graph()
-            seeds = specifiers.get_matching_nodes(data, specifier)
+            seeds = specifiers.get_matching_nodes(input_graph, specifier)
             graph = graphs.merge_graphs(graph, *[
-                specifiers.neighbour_graph(data, seed, depth)
+                specifiers.neighbour_graph(input_graph, seed, depth)
                 for seed in seeds])
 
     if args.after_all and graph:
-        graph = graphs.merge_graphs(graph, *[graphs.after_graph(data, node) for node in graph["nodes"]])
+        graph = graphs.merge_graphs(graph, *[graphs.after_graph(input_graph, node) for node in graph["nodes"]])
 
 
     if graph is None:
-        graph = root_graph(data)
+        graph = root_graph(input_graph)
 
     if args.contract is not None:
-        contraction_nodes = set.union(*(specifiers.get_matching_nodes(data, spec) for spec in args.contract))
+        contraction_nodes = set.union(*(specifiers.get_matching_nodes(input_graph, spec) for spec in args.contract))
         graph = graphs.contract_graph(graph, contraction_nodes)
 
     print(render.render_graph(data, graph, highlighted_nodes, grouped_nodes))

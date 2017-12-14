@@ -126,4 +126,10 @@ def induce_graph(graph, nodes):
 
     return result
 
+def remove_label(graph, label):
+    result = dict(edges={}, nodes=set(graph["nodes"]))
+    for node in graph['edges']:
+        result["edges"][node] = [(l, x) for l, x in  graph['edges'][node] if l != label]
+
+    return result
 
