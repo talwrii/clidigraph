@@ -416,11 +416,11 @@ def create_node(data, args):
 
     if args.from_nodes:
         for from_node in args.from_nodes:
-            add_edge(data, from_node, args.name, label=args.label)
+            add_edge(data, from_node, 'raw:' + args.name, label=args.label)
 
     if args.to_nodes:
         for to_node in args.to_nodes:
-            add_edge(data, args.name, to_node, label=args.label)
+            add_edge(data, 'raw:' + args.name, to_node, label=args.label)
 
 def rename_command(data, old, new):
     old, = [n for n in data['nodes'] if re.search(old, n)]
