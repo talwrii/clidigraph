@@ -98,6 +98,10 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
         '--contract', '-C', type=str, action='append',
         metavar='selector_list',
         help='Place these node in a group. And color them the same color')
+    show_parser.add_argument(
+        '--nodes', '-N', type=str, action='append',
+        metavar='selector',
+        help='Include items matching this selector')
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -457,6 +461,15 @@ def show(args, data):
             from_nodes = specifiers.get_matching_nodes(data, from_spec)
             to_nodes = specifiers.get_matching_nodes(data, to_spec)
             graph = graphs.merge_graphs(graph, graphs.between_graph(data, from_nodes, to_nodes))
+
+    if args.nodes:
+        graph = graph or empty_graph()
+        induction_nodes = set()
+        for spec in args.nodes:
+            induction_nodes |= set(specifiers.get_matching_nodes(data, spec))
+
+
+        graph = graphs.merge_graphs(graph, graphs.induce_graph(data, induction_nodes))
 
 
     if after_nodes is not None:

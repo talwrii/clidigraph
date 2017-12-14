@@ -115,3 +115,15 @@ def contract_graph(graph, kept_nodes):
             visited |= pseudo_neighbours
             pseudo_neighbours |= border
     return result
+
+def induce_graph(graph, nodes):
+    result = dict(edges={}, nodes=set(nodes))
+
+    for n in nodes:
+        result['edges'][n] = [
+            (l, target)
+            for l, target in graph["edges"].get(n, []) if target in nodes]
+
+    return result
+
+
