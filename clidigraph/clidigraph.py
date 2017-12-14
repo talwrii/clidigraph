@@ -328,7 +328,7 @@ def move_tag_command(data, args):
 
 def delete_tag_command(data, args):
     tag = datastore.get_tag(data, args.tag)
-    data['tags'].remove(tag)
+    data['tags'].pop(tag)
     for v in data["node_info"].values():
         if tag in v:
             v.remove(tag)
