@@ -48,8 +48,8 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     remove_parser.add_argument('node', action='append', type=str)
 
     tag_parser = parsers.add_parser('tag', help='Tag a node')
-    tag_parser.add_argument('tag', type=str)
     tag_parser.add_argument('node', type=str)
+    tag_parser.add_argument('tag', type=str)
     tag_parser.add_argument('--new', '-n', action='store_true', help='Create a new tag')
 
     tag_parser = parsers.add_parser('move-tag', help='Move one tag to another')
