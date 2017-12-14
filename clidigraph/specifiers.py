@@ -37,10 +37,11 @@ def get_matching_nodes(data, specifier):
             return set(data["nodes"]) - get_matching_nodes(data, rest)
         elif head == 'strict-after':
             bases = get_matching_nodes(data, rest)
-            result = set()
+            nodes = set()
             for b in bases:
-                result |= (graphs.after_graph(data, b)['nodes']  - set(b))
-            return result
+                nodes |= (graphs.after_graph(data, b)['nodes']  - set([b]))
+
+            return nodes
         elif head == 'after':
             bases = get_matching_nodes(data, rest)
             return graphs.merge_graphs(*(graphs.after_graph(data, b) for b in bases))["nodes"]
