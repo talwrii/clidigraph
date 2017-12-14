@@ -89,6 +89,8 @@ def contract_graph(graph, kept_nodes):
     # ignore labels for the moment
     result = dict(edges={}, nodes=set())
 
+    kept_nodes = kept_nodes & set(graph["nodes"])
+
     for node in kept_nodes:
         result['nodes'].add(node)
         pseudo_neighbours = set([node])
