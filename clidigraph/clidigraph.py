@@ -19,7 +19,7 @@ import graphviz
 
 import editor
 
-from . import graphs, specifiers
+from . import graphs, specifiers, datastore
 
 if sys.version_info[0] != 3:
     # FileNotFoundError does not exist in python 2
@@ -46,7 +46,7 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     remove_parser = parsers.add_parser('nonode')
     remove_parser.add_argument('node', action='append', type=str)
 
-    tag_parser = parsers.add_parser('tag', help='Run the trigger event')
+    tag_parser = parsers.add_parser('tag', help='Tag a node')
     tag_parser.add_argument('tag', type=str)
     tag_parser.add_argument('node', type=str)
     tag_parser.add_argument('--new', '-n', action='store_true', help='Create a new tag')
