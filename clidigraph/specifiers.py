@@ -33,6 +33,17 @@ def get_matching_nodes(data, specifier):
             return set(graphs.merge_graphs(*[
                 neighbour_graph(data, root, depth)
                 for root in root_nodes])["nodes"]) - set(root_nodes)
+        elif head == 'not':
+            return set(data["nodes"]) - get_matching_nodes(data, rest)
+        elif head == 'strict-after':
+            bases = get_matching_nodes(data, rest)
+            result = set()
+            for b in bases:
+                result |= (graphs.after_graph(data, b)['nodes']  - set(b))
+            return result
+        elif head == 'after':
+            bases = get_matching_nodes(data, rest)
+            return graphs.merge_graphs(*(graphs.after_graph(data, b) for b in bases))["nodes"]
         elif head == 'before':
             bases = get_matching_nodes(data, rest)
             before_graph = graphs.merge_graphs(*(graphs.before_graph(data, b) for b in bases))
