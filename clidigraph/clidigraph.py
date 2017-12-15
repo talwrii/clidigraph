@@ -259,8 +259,7 @@ def main(): # pylint: disable=too-many-branches
                         print(tag)
                 else:
                     result = set()
-                    for node in specifiers.get_matching_nodes(data, args.specifier):
-                        print(node)
+                    for node in specifiers.get_matching_nodes(data, data, args.specifier):
                         tags = data['node_info'][node].get('tags', [])
                         result.update(tags)
                     for tag in sorted(result):
@@ -309,13 +308,13 @@ def add_tag_command(data, args):
         tag = args.tag
         data["tags"][tag] = list()
     else:
-        tag = datastore.get_tag(data, args.tag)
+        tag = datastore.get_tag(data=data, tag=args.tag)
 
     data["node_info"].setdefault(node, dict())
     data["node_info"][node].setdefault('tags', list()).append(tag)
 
 def untag_command(data, args):
-    for node in specifiers.get_matching_nodes(data, args.specifier):
+    for node in specifiers.get_matching_nodes(data, data, args.specifier):
         if node in data["node_info"] and 'tags' in data['node_info'][node]:
             if args.tag in data["node_info"][node]['tags']:
                 data["node_info"][node]['tags'].remove(args.tag)
@@ -329,7 +328,7 @@ def move_tag_command(data, args):
                 v['tags'].append(args.source)
 
 def delete_tag_command(data, args):
-    tag = datastore.get_tag(data, args.tag)
+    tag = datastore.get_tag(data=data, tag=args.tag)
     data['tags'].pop(tag)
     for v in data["node_info"].values():
         if tag in v:
@@ -347,7 +346,7 @@ def list_node_command(args, data):
     if args.specifier is None:
         nodes = data['nodes']
     else:
-        nodes = specifiers.get_matching_nodes(data, args.specifier)
+        nodes = specifiers.get_matching_nodes(data, data,  args.specifier)
 
     for node in sorted(nodes):
         node_tag = data['node_info'].get(node, dict()).get('tag')
@@ -372,32 +371,32 @@ def delete_node_command(args, data):
 def show(args, data):
     before_nodes = args.before and set.union(
         *(
-            specifiers.get_matching_nodes(data, spec)
+            specifiers.get_matching_nodes(data, data, spec)
             for spec in args.before))
     after_nodes = args.after and set.union(
         *(
-            specifiers.get_matching_nodes(data, spec)
+            specifiers.get_matching_nodes(data, data, spec)
             for spec in args.after))
 
     if args.around:
         before_nodes = set.union(
             before_nodes or set(),
-            *(specifiers.get_matching_nodes(data, spec) for spec in args.around))
+            *(specifiers.get_matching_nodes(data, data, spec) for spec in args.around))
         after_nodes = set.union(
             after_nodes or set(),
-            *(specifiers.get_matching_nodes(data, spec) for spec in args.around))
+            *(specifiers.get_matching_nodes(data, data, spec) for spec in args.around))
 
     if args.group:
         grouped_nodes = collections.OrderedDict()
         for name, selector in args.group:
-            grouped_nodes[name] = specifiers.get_matching_nodes(data, selector)
+            grouped_nodes[name] = specifiers.get_matching_nodes(data, data, selector)
     else:
         grouped_nodes = dict()
 
 
     if args.highlight:
         highlighted_nodes = set.union(
-            *(specifiers.get_matching_nodes(data, spec) for spec in args.highlight))
+            *(specifiers.get_matching_nodes(data, data, spec) for spec in args.highlight))
     else:
         highlighted_nodes = []
 
@@ -413,7 +412,7 @@ def show(args, data):
     if args.cut:
         edges = set()
         for spec in args.cut:
-            edges |= set(specifiers.get_matching_edges(input_graph, spec))
+            edges |= set(specifiers.get_matching_edges(data, input_graph, spec))
         input_graph = graphs.remove_edges(input_graph, edges)
 
     if before_nodes is not None:
@@ -423,15 +422,15 @@ def show(args, data):
     if args.between:
         graph = graph or empty_graph()
         for from_spec, to_spec in args.between:
-            from_nodes = specifiers.get_matching_nodes(input_graph, from_spec)
-            to_nodes = specifiers.get_matching_nodes(input_graph, to_spec)
+            from_nodes = specifiers.get_matching_nodes(data, input_graph, from_spec)
+            to_nodes = specifiers.get_matching_nodes(data, input_graph, to_spec)
             graph = graphs.merge_graphs(graph, graphs.between_graph(input_graph, from_nodes, to_nodes))
 
     if args.nodes:
         graph = graph or empty_graph()
         induction_nodes = set()
         for spec in args.nodes:
-            induction_nodes |= set(specifiers.get_matching_nodes(input_graph, spec))
+            induction_nodes |= set(specifiers.get_matching_nodes(data, input_graph, spec))
 
 
         graph = graphs.merge_graphs(graph, graphs.induce_graph(input_graph, induction_nodes))
@@ -444,7 +443,7 @@ def show(args, data):
     if args.neighbours:
         for specifier, depth in args.neighbours:
             graph = graph or empty_graph()
-            seeds = specifiers.get_matching_nodes(input_graph, specifier)
+            seeds = specifiers.get_matching_nodes(data, input_graph, specifier)
             graph = graphs.merge_graphs(graph, *[
                 specifiers.neighbour_graph(input_graph, seed, depth)
                 for seed in seeds])
@@ -460,7 +459,8 @@ def show(args, data):
     # Contract phase (edges can change after this)
 
     if args.contract is not None:
-        contraction_nodes = set.union(*(specifiers.get_matching_nodes(data, spec) for spec in args.contract))
+        contraction_nodes = set.union(*(specifiers.get_matching_nodes(data, data, spec) for spec in args.contract))
+        LOGGER.debug('Contraction nodes: %r', contraction_nodes)
         graph = graphs.contract_graph(graph, contraction_nodes)
 
     print(render.render_graph(data, graph, highlighted_nodes, grouped_nodes))

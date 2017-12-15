@@ -1,7 +1,7 @@
 
 import re
 
-def get_tag(data, name):
+def get_tag(data, tag):
     possible = [t for t in data['tags'] if re.search(name, t)]
     try:
         tag, = possible
