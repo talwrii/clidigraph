@@ -14,8 +14,21 @@ def get_node(data, source):
         result, = [n for n in data['nodes'] if re.search(source, n)]
     return result
 
-def get_matching_nodes(data, specifier):
+def get_matching_edges(data, specifier):
+    head, rest = specifier.split(':', 1)
+    result = []
+    if head == 'to':
+        nodes = get_matching_nodes(data, rest)
+        backward = graphs.reverse_graph(data)
+        for node in nodes:
+            for label, target in backward['edges'][node]:
+                result.append((target, label, node))
+    else:
+        raise NotImplementedError(head)
+    return result
 
+
+def get_matching_nodes(data, specifier):
     if specifier.startswith('raw:'):
         single, = [n for n in data["nodes"] if n == specifier.split(':')[1]]
         return set([single])

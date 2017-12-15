@@ -133,3 +133,6 @@ def remove_label(graph, label):
 
     return result
 
+def remove_edges(graph, edges):
+    edges = set(edges)
+    return edge_set_to_graph(graph['nodes'], [x for x in edge_set(graph) if x not in  edges])

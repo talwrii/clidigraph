@@ -114,7 +114,9 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     show_parser.add_argument(
         '--no-label', type=str, action='append',
         help='Exclude these labels from the graph')
-
+    show_parser.add_argument(
+        '--cut', type=str, action='append',
+        help='Exclude these edges from a graph')
 
     config_parser = parsers.add_parser('config', help='Change settings')
     action = config_parser.add_mutually_exclusive_group(required=True)
@@ -403,10 +405,16 @@ def show(args, data):
 
     graph = None
 
+    # Edge cutting phase (various operations depend upon edges (contract edge)
     if args.no_label:
         for label in args.no_label:
             input_graph = graphs.remove_label(input_graph, label)
 
+    if args.cut:
+        edges = set()
+        for spec in args.cut:
+            edges |= set(specifiers.get_matching_edges(input_graph, spec))
+        input_graph = graphs.remove_edges(input_graph, edges)
 
     if before_nodes is not None:
         graph = graph or empty_graph()
@@ -445,8 +453,11 @@ def show(args, data):
         graph = graphs.merge_graphs(graph, *[graphs.after_graph(input_graph, node) for node in graph["nodes"]])
 
 
+    # Show the whole graph if nothing is found
     if graph is None:
         graph = root_graph(input_graph)
+
+    # Contract phase (edges can change after this)
 
     if args.contract is not None:
         contraction_nodes = set.union(*(specifiers.get_matching_nodes(input_graph, spec) for spec in args.contract))
