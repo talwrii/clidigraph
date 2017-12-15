@@ -460,7 +460,7 @@ def show(args, data):
     # Contract phase (edges can change after this)
 
     if args.contract is not None:
-        contraction_nodes = set.union(*(specifiers.get_matching_nodes(input_graph, spec) for spec in args.contract))
+        contraction_nodes = set.union(*(specifiers.get_matching_nodes(data, spec) for spec in args.contract))
         graph = graphs.contract_graph(graph, contraction_nodes)
 
     print(render.render_graph(data, graph, highlighted_nodes, grouped_nodes))
