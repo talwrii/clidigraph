@@ -70,8 +70,8 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     show_parser = parsers.add_parser('show', help='Show all nodes')
     show_parser.add_argument(
         '--collapse', '-c', type=str, action='append',
-        help='Collapse nodes after this point'
-        ' Use tag:TAGNAME to show all nodes with a tag')
+        metavar='specifier',
+        help='Get rid of these nodes, but keep implied edges')
     show_parser.add_argument(
         '--around', '-r', type=str, action='append',
         help='Show nodes both before and after this.'
