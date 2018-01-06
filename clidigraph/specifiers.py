@@ -103,7 +103,7 @@ def get_nodes(data, graph, tag=None):
     if tag is None:
         raise ValueError(tag)
 
-    for name, info in node_info.items():
+    for name, info in data['node_info'].items():
         if tag in info.get('tags', list()):
             if name in graph['nodes']:
                 yield name
