@@ -2,9 +2,9 @@
 import re
 
 def get_tag(data, tag):
-    possible = [t for t in data['tags'] if re.search(name, t)]
+    possible = [t for t in data['tags'] if re.search(tag, t)]
     try:
-        tag, = possible
+        result, = possible
     except:
-        raise ValueError(name)
-    return tag
+        raise ValueError(tag)
+    return result
