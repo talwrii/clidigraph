@@ -202,7 +202,8 @@ def root_graph(data):
 DEFAULT_SETTINGS = dict(trigger=None)
 
 def main(): # pylint: disable=too-many-branches
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -268,6 +269,8 @@ def main(): # pylint: disable=too-many-branches
                 pass
             elif args.command == 'info':
                 show_node_info_command(data, args)
+            elif args.command == None:
+                parser.print_help()
             else:
                 raise ValueError(args.command)
 
