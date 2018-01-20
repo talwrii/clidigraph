@@ -28,6 +28,62 @@ def get_matching_edges(data, graph, specifier):
     return result
 
 
+class SpecifierMatch(object):
+    def __init__(self, data, graph):
+        self.data = data
+        self.graph = graph
+
+    def get_neighbour(self, rest):
+        depth, root_specifier = rest.split(':', 1)
+        root_nodes = get_matching_nodes(self.data, self.graph, root_specifier)
+        return set(graphs.merge_graphs(*[
+            neighbour_graph(self.graph, root, depth)
+            for root in root_nodes])["nodes"]) - set(root_nodes)
+
+    def get_not(self, rest):
+        return set(self.graph["nodes"]) - get_matching_nodes(self.data, self.graph, rest)
+
+    def get_strict_before(self, rest):
+        bases = get_matching_nodes(self.data, self.graph, rest)
+        nodes = set()
+        for b in bases:
+            nodes |= (set(graphs.before_graph(self.graph, b)['nodes']) - set([b]))
+        return nodes
+
+    def get_strict_after(self, rest):
+        bases = get_matching_nodes(self.data, self.graph, rest)
+        nodes = set()
+        for b in bases:
+            nodes |= (graphs.after_graph(self.graph, b)['nodes']  - set([b]))
+        return nodes
+
+    def get_between(self, rest):
+        from_spec, to_spec = rest.split('::')
+        to_nodes = get_matching_nodes(self.data, self.graph, to_spec)
+        from_nodes = get_matching_nodes(self.data, self.graph, from_spec)
+        return graphs.between_graph(self.graph, from_nodes, to_nodes)["nodes"]
+
+    def get_after(self, rest):
+        bases = get_matching_nodes(self.data, self.graph, rest)
+        return graphs.merge_graphs(*(graphs.after_graph(self.graph, b) for b in bases))["nodes"]
+
+    def get_before(self, rest):
+        bases = get_matching_nodes(self.data, self.graph, rest)
+        before_graph = graphs.merge_graphs(*(graphs.before_graph(self.graph, b) for b in bases))
+        return set(before_graph['nodes'])
+
+    def get_root(self, rest):
+        del rest
+        return get_roots(self.graph)
+
+    def get_tag(self, rest):
+        return get_nodes(self.data, self.graph, tag=rest)
+
+    @classmethod
+    def specifiers(cls):
+        return [method[len('get_'):].replace('_', '-') for method in dir(cls) if method.startswith('get_')]
+
+
 def get_matching_nodes(data, graph, specifier):
     if specifier.startswith('raw:'):
         single, = [n for n in graph["nodes"] if n == specifier.split(':')[1]]
@@ -39,46 +95,8 @@ def get_matching_nodes(data, graph, specifier):
 
     if ':' in specifier:
         head, rest = specifier.split(':', 1)
-        if specifier.startswith('neighbour:'):
-            _, rest = specifier.split(':', 1)
-            depth, root_specifier = rest.split(':', 1)
-            root_nodes = get_matching_nodes(data, graph, root_specifier)
-            return set(graphs.merge_graphs(*[
-                neighbour_graph(graph, root, depth)
-                for root in root_nodes])["nodes"]) - set(root_nodes)
-        elif head == 'not':
-            return set(graph["nodes"]) - get_matching_nodes(data, graph, rest)
-        elif head == 'strict-before':
-            bases = get_matching_nodes(data, graph, rest)
-            nodes = set()
-            for b in bases:
-                nodes |= (set(graphs.before_graph(graph, b)['nodes']) - set([b]))
-            return nodes
-        elif head == 'strict-after':
-            bases = get_matching_nodes(data, graph, rest)
-            nodes = set()
-            for b in bases:
-                nodes |= (graphs.after_graph(graph, b)['nodes']  - set([b]))
-            return nodes
-        elif head == 'between':
-            from_spec, to_spec = rest.split('::')
-            to_nodes = get_matching_nodes(data, graph, to_spec)
-            from_nodes = get_matching_nodes(data, graph, from_spec)
-            return graphs.between_graph(graph, from_nodes, to_nodes)["nodes"]
-        elif head == 'after':
-            bases = get_matching_nodes(data, graph, rest)
-            return graphs.merge_graphs(*(graphs.after_graph(graph, b) for b in bases))["nodes"]
-        elif head == 'before':
-            bases = get_matching_nodes(data, graph, rest)
-            before_graph = graphs.merge_graphs(*(graphs.before_graph(graph, b) for b in bases))
-            return set(before_graph['nodes'])
-        elif specifier.startswith('root:'):
-            result.update(get_roots(graph))
-        elif specifier.startswith('tag:'):
-            _, tag = specifier.split(':', 1)
-            result.update(get_nodes(data, graph, tag=tag))
-        else:
-            raise ValueError(specifier)
+        spec = SpecifierMatch(data, graph)
+        return getattr(spec, 'get_' + head.replace('-', '_'))(rest)
     else:
         result |= set([node for node in graph['nodes'] if re.search(specifier, node)])
     return result
