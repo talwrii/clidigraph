@@ -155,6 +155,8 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     edge_parser.add_argument('target', type=str)
     edge_parser.add_argument('label', type=str, default=graphs.DEFAULT, nargs='?')
 
+    specifiers_parser = parsers.add_parser('specifiers', help='Output nodes specifiers')
+
     notes_parser = parsers.add_parser('note', help='Change the node associates with an entry')
     notes_parser.add_argument('node_selector', type=str)
     notes_parser.add_argument('note', type=str, nargs='?')
@@ -225,7 +227,9 @@ def main(): # pylint: disable=too-many-branches
                 shell_command(data)
             elif args.command == 'config':
                 config_command(args, data)
-
+            elif args.command == 'specifiers':
+                for x in specifiers.SpecifierMatch.specifiers():
+                    print(x)
             elif args.command == 'edge':
                 add_edge(data, args.source, args.target, args.label)
             elif args.command == 'label':
@@ -274,7 +278,7 @@ def main(): # pylint: disable=too-many-branches
             else:
                 raise ValueError(args.command)
 
-    if TRIGGERS_CHANGE[args.command]:
+    if args.command is not None and TRIGGERS_CHANGE[args.command]:
         LOGGER.debug('Triggering change')
         subprocess.check_call(data['settings']['trigger'], shell=True)
 
@@ -559,5 +563,6 @@ TRIGGERS_CHANGE = {
     'tag': True,
     'tags': False,
     'trigger': True,
+    'specifiers': False,
     'move-tag': True,
     'untag': True}
