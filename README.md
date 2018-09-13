@@ -1,25 +1,29 @@
 # clidigraph
 
-A minimal command-line program to store and query digraphs. Inefficient, limited in use cases and easy use to use from the shell.
+**Experimental code liable to dramatic change. Untested. Use with caution**
+
+A minimal command-line program to store and query digraphs. This is not optimised for performance and is designed to be easy-to-use from the shell. Outputs to dot.
+
+# Query language
 
 
-# Usage
 
 ```
 # Add an edge
 clidigraph add one two
 
 # Dump the graph to graphviz
-clidigraph show 
+clidigraph show
+
+# Show the ancestors thing
+clidigraph show --nodes 'after:thing'
 
 ```
 
 # Alternatives and prior work
 
-There are many graph databases, some of which provide powerful querying mechanisms. After a brief review, the author found most of these too heavy weight (high set-up costs). [This post](https://news.ycombinator.com/item?id=10991751) suggested [tinkergraph](http://tinkerpop.apache.org/) and [cayley](https://github.com/cayleygraph/cayley) as lightweight, single process solutions.
+There are many graph databases, some of which provide powerful querying mechanisms. After a brief review, the author found most of these too heavy-weight (high set-up costs). [This post](https://news.ycombinator.com/item?id=10991751) suggested [tinkergraph](http://tinkerpop.apache.org/) and [cayley](https://github.com/cayleygraph/cayley) as lightweight, single process solutions.
 
 [neo4j](https://neo4j.com/) is a widely used graph database.
 
 Many semantic web standards like [rdf](https://www.w3.org/2001/sw/wiki/RDF) and [SPARQL](https://www.w3.org/TR/rdf-sparql-query/) deal with similar types of activity.
-
-
