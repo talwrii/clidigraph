@@ -6,14 +6,17 @@ A minimal command-line program to store and query digraphs. This is not optimise
 
 # Query language
 
-
-
 ```
 # Add an edge
-clidigraph add one two
+clidigraph node one two three
+
+clidigraph edge one two
 
 # Dump the graph to graphviz
 clidigraph show
+
+# Draw a picture of the graph
+clidigraph show | dot -Tpng > /tmp/picture.png; sxiv /tmp/picture.png
 
 # Show the ancestors thing
 clidigraph show --nodes 'after:thing'
