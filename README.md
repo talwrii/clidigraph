@@ -26,4 +26,4 @@ There are many graph databases, some of which provide powerful querying mechanis
 
 [neo4j](https://neo4j.com/) is a widely used graph database.
 
-Many semantic web standards like [rdf](https://www.w3.org/2001/sw/wiki/RDF) and [SPARQL](https://www.w3.org/TR/rdf-sparql-query/) deal with similar types of activity.
+Many semantic web standards like [rdf](https://www.w3.org/2001/sw/wiki/RDF) and [SPARQL](https://www.w3.org/TR/rdf-sparql-query/) deal with similar types of activity: creating labelled graphs, querying them and manipulating them.

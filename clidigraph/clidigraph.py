@@ -131,7 +131,7 @@ def build_parser(): # pylint: disable=too-many-locals,too-many-locals,too-many-s
     info_parser.add_argument('node_selector', type=str)
 
     node_parser = parsers.add_parser('node', help='Add a node')
-    node_parser.add_argument('name', type=str)
+    node_parser.add_argument('name', type=str, nargs='+')
     node_parser.add_argument(
         '--tag', '-T', type=str,
         help='Mark the node with this tag')
@@ -475,20 +475,21 @@ def show(args, data):
     print(render.render_graph(data, graph, highlighted_nodes, grouped_nodes))
 
 def create_node(data, args):
-    if args.name in data['nodes']:
-        raise Exception('Not {!r} already exists'.format(args.name))
-    data['nodes'].append(args.name)
+    for name in args.name:
+        if name in data['nodes']:
+            raise Exception('Not {!r} already exists'.format(name))
+        data['nodes'].append(name)
 
-    if args.tag:
-        data['node_info'].setdefault(args.name, dict())['tag'] = args.tag
+        if args.tag:
+            data['node_info'].setdefault(name, dict())['tag'] = args.tag
 
-    if args.from_nodes:
-        for from_node in args.from_nodes:
-            add_edge(data, from_node, 'raw:' + args.name, label=args.label)
+        if args.from_nodes:
+            for from_node in args.from_nodes:
+                add_edge(data, from_node, 'raw:' + name, label=args.label)
 
-    if args.to_nodes:
-        for to_node in args.to_nodes:
-            add_edge(data, 'raw:' + args.name, to_node, label=args.label)
+        if args.to_nodes:
+            for to_node in args.to_nodes:
+                add_edge(data, 'raw:' + name, to_node, label=args.label)
 
 def rename_command(data, old, new):
     old, = [n for n in data['nodes'] if re.search(old, n)]
