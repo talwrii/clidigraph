@@ -90,7 +90,7 @@ def get_matching_nodes(data, graph, specifier):
         return set([single])
 
     if ',' in specifier:
-        return set.union(*(get_matching_nodes(data, graph, s) for s in specifier.split(',')))
+        return set.union(*map(set, (get_matching_nodes(data, graph, s) for s in specifier.split(','))))
     result = set()
 
     if ':' in specifier:

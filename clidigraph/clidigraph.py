@@ -468,7 +468,8 @@ def show(args, data):
     # Contract phase (edges can change after this)
 
     if args.contract is not None:
-        contraction_nodes = set.union(*(specifiers.get_matching_nodes(data, data, spec) for spec in args.contract))
+        contraction_sets = (set(specifiers.get_matching_nodes(data, data, spec)) for spec in args.contract)
+        contraction_nodes = set.union(*contraction_sets)
         LOGGER.debug('Contraction nodes: %r', contraction_nodes)
         graph = graphs.contract_graph(graph, contraction_nodes)
 
