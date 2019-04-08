@@ -2,7 +2,8 @@
 
 **Experimental code liable to dramatic change. Untested. Use with caution**
 
-A minimal command-line program to store and query digraphs. This is not optimised for performance and is designed to be easy-to-use from the shell. Outputs to dot.
+A minimal command-line program to store and query digraphs. This is not optimised for performance and is designed to be easy-to-use from the shell. Outputs to [graphviz dot](http://graphviz.org/).
+
 
 # Query language
 
@@ -18,9 +19,11 @@ clidigraph show
 # Draw a picture of the graph
 clidigraph show | dot -Tpng > /tmp/picture.png; sxiv /tmp/picture.png
 
-# Show the ancestors thing
+# Show the ancestors of thing
 clidigraph show --nodes 'after:thing'
 
+# Show which endpoints are connected to which starting points by paths
+clidigraph show --contract tag:start,tag:end
 ```
 
 # Alternatives and prior work
